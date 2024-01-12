@@ -1,38 +1,33 @@
+## 22102 Applied Single Cell Bioinformatics
+## Project
+## Last modified: 12/1 2024
+
 # Load libraries
 library(Seurat)
+library(tidyverse)
 library(dplyr)
 
-# Read in entire file
-
-counts <- read.delim("data/GSE146170_allergen_TREG_umi.txt.gz",
+# Read in the file
+counts <- read.table(file = "Data/GSE146170_allergen_TREG_umi.txt.gz",
                      header = TRUE)
 
-# Pull only gene information
-tirosh_genes <- tirosh[-1:-3,]
+# Make gene names as row names
+rownames(counts) <- counts[ , 1]
+counts <- counts[ , -1]
 
-# Duplicate gene names so make names unique (up to you how you want to deal with this part)
-gene_list <- tirosh_genes %>%
-  pull("Cell") %>%
-  make.unique(sep = ".")
+# Read in the meta data
+meta_data <- read.table(file = "Data/allergen_TREG_annotation.txt",
+                        header = TRUE)
 
-# Add back unique rownames
-rownames(tirosh_genes) <- gene_list
+# Make gene names as row names
+rownames(meta_data) <- meta_data[ , 1]
+meta_data <- meta_data[ , -1]
 
-# Remove Column of gene names
-tirosh_genes <- tirosh_genes[, -1]
-
-# Pull meta data columns from original data
-tirosh_meta <- tirosh[1:3,]
-
-# Make rownames equal to column 1 values
-rownames(tirosh_meta) <- tirosh_meta[, 1]
-
-# Remove column 1
-tirosh_meta <- tirosh_meta[, -1]
-
-# Transpose meta data as Seurat expects meta data to have cell names as rows and meta data values as columns
-tirosh_meta_transpose <- data.frame(t(tirosh_meta))
+# Extract relevant information
+meta_data <- meta_data[ , c(1:2, 6, 8:10)]
 
 # Create Seurat Object
-tirosh_seurat <- CreateSeuratObject(counts = tirosh_genes, meta.data = tirosh_meta_transpose)
-View(tirosh_seurat@meta.data)
+treg_data <- CreateSeuratObject(counts = counts,
+                                meta.data = meta_data)
+# Save as RDS file
+saveRDS(treg_data, "Data/treg_data")
