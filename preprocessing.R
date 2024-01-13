@@ -1,3 +1,11 @@
+## 22102 Applied Single Cell Bioinformatics
+## Project
+## Last modified: 13/1 2024
+
+## PREPROCESSING
+
+###########################################
+
 # Load libraries
 library(dplyr)
 library(Seurat)
@@ -7,107 +15,170 @@ library(clustree)
 library(scDblFinder)
 library(SingleCellExperiment)
 
-# Read Seurat object
-treg <- readRDS("Data/treg_data")
+# Read Seurat objects
+treg_asthm <- readRDS("Data/treg_asthm.rds")
+teff_asthm <- readRDS("Data/teff_asthm.rds")
+data_asthm <- list(treg_asthm, teff_asthm)
 
-# Subset and analyze cells from asthmatic non-allergic "AS_NA and asthmatic allergic "AS_AL"
-asthm <- subset(treg, subset = diseasegroup %in% c("AS_NA", "AS_AL"))
+# ---------------------- Quality Control---------------------- #
 
+# Compute commonly used QC metrics.
 
-# --------- Quality Control----------------------#
+for (i in 1:2){
+  # Calculate novelty score
+  data_asthm[[i]]$log10GenesPerUMI <- log10(data_asthm[[i]]$nFeature_RNA) / log10(data_asthm[[i]]$nCount_RNA)
 
-# Calculate novelty score
-asthm$log10GenesPerUMI <- log10(asthm$nFeature_RNA) / log10(asthm$nCount_RNA)
+  # Mitochondrial content
+  data_asthm[[i]] <- PercentageFeatureSet(data_asthm[[i]],
+                                          pattern = "^MT-",
+                                          col.name = "percent_mt")
 
-# Mitochondrial content
-asthm[["percent.mt"]] <- PercentageFeatureSet(asthm, pattern = "^MT-")
+  # Ribosomal content
+  data_asthm[[i]] <- PercentageFeatureSet(data_asthm[[i]],
+                                          pattern = "^RP[SL]",
+                                          col.name = "percent_ribo")
 
-# Ribosomal proportion
-asthm <- PercentageFeatureSet(asthm, "^RP[SL]", col.name = "percent_ribo")
+  # Hemoglobin content
+  data_asthm[[i]] <- PercentageFeatureSet(data_asthm[[i]],
+                                          pattern = "^HB[^(P)]",
+                                          col.name = "percent_hb")
+}
 
-# Hemoglobin proportion
-asthm <- PercentageFeatureSet(asthm, "^HB[^(P)]", col.name = "percent_hb")
+# Overwrite the old objects to the ones saved in the list.
+treg_asthm <- data_asthm[[1]]
+teff_asthm <- data_asthm[[2]]
 
-# Visualize the number of cell counts per diseasegroup
-cell_counts <- asthm[[]] %>%
-  ggplot(aes(x=diseasegroup, fill=diseasegroup)) +
-  geom_bar() +
-  theme_classic() +
-  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
-  theme(plot.title = element_text(hjust=0.5, face="bold")) +
-  ggtitle("NCells")
+# Plot the results.
+plot_vln_treg <- VlnPlot(treg_asthm,
+                         features = c("nFeature_RNA", "nCount_RNA", "percent_mt", "percent_ribo", "percent_hb"),
+                         cols = "#6699CC",
+                         combine = FALSE)
+plot_vln_teff <- VlnPlot(teff_asthm,
+                         features = c("nFeature_RNA", "nCount_RNA", "percent_mt", "percent_ribo", "percent_hb"),
+                         cols = "#6699CC",
+                         combine = FALSE)
+plot_vln_list <- list(plot_vln_treg, plot_vln_teff)
 
-cell_counts
+title <- c("Number of genes", "Number RNA molecules", "Mitochondrial content (%)", "Ribosomal content (%)", "Hemoglobin content (%)")
 
-ggsave("Cell_counts.png", cell_counts, path= "../Plots/QC")
+threshold_treg <- list(c(250, 1500), 500, 5, 1, 1)
+threshold_teff <- list(c(250, 1750), 500, 5, 1, 1)
+threshold_list <- list(threshold_treg, threshold_teff)
 
-#  Visualize the number of transcripts per cell in each diseasegroup.
-UMI_cell <- asthm[[]] %>%
-  ggplot(aes(color= diseasegroup , x= nCount_RNA, fill=diseasegroup)) +
-  geom_density(alpha = 0.2) +
-  scale_x_log10() +
-  theme_classic() +
-  ylab("Cell density") +
-  geom_vline(xintercept = 500)
+for (i in 1:2){
+  plot_vln <- plot_vln_list[[i]]
+  threshold <- threshold_list[[i]]
+  for (j in 1:5){
+    plot_vln[[j]] <- plot_vln[[j]] +
+      geom_hline(yintercept = threshold[[j]],
+                 col = "#CC3333") +
+      ggtitle(title[j]) +
+      theme(axis.text.x = element_blank(),
+            axis.ticks.x = element_blank(),
+            legend.position = "none")
+  }
+  plot_vln_list[[i]] <- plot_vln
+}
 
+plot_vln_treg <- wrap_plots(plot_vln_list[[1]],
+                            ncol = 5)
+plot_vln_teff <- wrap_plots(plot_vln_list[[2]],
+                            ncol = 5)
 
-UMI_cell
+plot_dens_list <- list()
 
-ggsave("UMI_cell.png", UMI_cell, path= "../Plots/QC")
+for (i in 1:2){
+  plot_dens <- list()
 
-# Visualize the distribution of genes detected per cell via histogram
-genes_cell <- asthm[[]] %>%
-  ggplot(aes(color=diseasegroup, x=nFeature_RNA, fill= diseasegroup)) +
-  geom_density(alpha = 0.2) +
-  theme_classic() +
-  scale_x_log10() +
-  geom_vline(xintercept = 300)
+  # Visualize the distribution of genes.
+  plot_dens[[1]] <- ggplot(data = data_asthm[[i]]@meta.data,
+                           aes(x = nFeature_RNA,
+                               color = diseasegroup,
+                               fill = diseasegroup)) +
+    geom_density(alpha = 0.2) +
+    scale_x_log10() +
+    theme_classic() +
+    xlab("RNA molecules") +
+    ylab("Cell density") +
+    geom_vline(xintercept = 500) +
+    scale_fill_discrete(name = "Disease group", labels = c("Asthmatic allergic",
+                                                           "Asthmatic non-allergic")) +
+    guides(color = FALSE)
 
-genes_cell
+  # Visualize the distribution of RNA molecules.
+  plot_dens[[2]] <- ggplot(data = data_asthm[[i]]@meta.data,
+                           aes(x = nCount_RNA,
+                               color = diseasegroup,
+                               fill = diseasegroup)) +
+    geom_density(alpha = 0.2) +
+    scale_x_log10() +
+    theme_classic() +
+    xlab("RNA molecules") +
+    ylab("Cell density") +
+    geom_vline(xintercept = 500) +
+    scale_fill_discrete(name = "Disease group", labels = c("Asthmatic allergic",
+                                                            "Asthmatic non-allergic")) +
+    guides(color = FALSE)
 
-ggsave("genes_cell.png", genes_cell, path= "../Plots/QC")
+  # Visualize the overall complexity by genes detected per UMI (novelty score)
+  plot_dens[[3]] <- ggplot(data = data_asthm[[i]]@meta.data,
+                           aes(x = log10GenesPerUMI,
+                               color = diseasegroup,
+                               fill = diseasegroup)) +
+    geom_density(alpha = 0.2) +
+    scale_x_log10() +
+    theme_classic() +
+    xlab("RNA molecules") +
+    ylab("Cell density") +
+    geom_vline(xintercept = 0.8) +
+    scale_fill_discrete(name = "Disease group", labels = c("Asthmatic allergic",
+                                                           "Asthmatic non-allergic")) +
+    guides(color = FALSE)
 
-# Visualize the overall complexity of the gene expression by visualizing the genes detected per UMI (novelty score)
-novelty <- asthm[[]] %>%
-  ggplot(aes(x=log10GenesPerUMI, color = diseasegroup, fill=diseasegroup)) +
-  geom_density(alpha = 0.2) +
-  theme_classic() +
-  geom_vline(xintercept = 0.8)
+  # Visualize the distribution of mitochondrial gene expression detected per cell.
+  plot_dens[[4]] <- ggplot(data = data_asthm[[i]]@meta.data,
+                           aes(x = percent_mt,
+                               color = diseasegroup,
+                               fill = diseasegroup)) +
+    geom_density(alpha = 0.2) +
+    scale_x_log10() +
+    theme_classic() +
+    xlab("RNA molecules") +
+    ylab("Cell density") +
+    geom_vline(xintercept = 5) +
+    scale_fill_discrete(name = "Disease group", labels = c("Asthmatic allergic",
+                                                           "Asthmatic non-allergic")) +
+    guides(color = FALSE)
 
-novelty
+  plot_dens_list[[i]] <- plot_dens
+}
 
-ggsave("novelty.png", novelty, path= "../Plots/QC")
+plot_scatter_list <- list()
 
-# Visualize the distribution of mitochondrial gene expression detected per cell
-mito <- asthm[[]] %>%
-  ggplot(aes(color=diseasegroup, x=percent.mt, fill=diseasegroup)) +
-  geom_density(alpha = 0.2) +
-  scale_x_log10() +
-  theme_classic() +
-  geom_vline(xintercept = 5)
+for (i in 1:2){
+  plot_scatter <- list()
+  plot_scatter[[1]] <- FeatureScatter(data_asthm[[i]],
+                                      feature1 = "nCount_RNA",
+                                      feature2 = "nFeature_RNA")
+  plot_scatter[[2]] <- FeatureScatter(data_asthm[[i]],
+                                      feature1 = "nCount_RNA",
+                                      feature2 = "percent_mt")
+  plot_scatter_list[[i]] <- plot_scatter
+}
 
-mito
+# SAVE RELEVANT FIGURES
+#ggsave("UMI_cell.png", UMI_cell, path= "../Plots/QC")
+#ggsave("genes_cell.png", genes_cell, path= "../Plots/QC")
+#ggsave("novelty.png", novelty, path= "../Plots/QC")
+#ggsave("mito.png", mito, path= "../Plots/QC")
 
-ggsave("mito.png", mito, path= "../Plots/QC")
-
-#  Visualize the created QC metrics as a violin plot.
-violinQC <- VlnPlot(asthm, features = c("nFeature_RNA", "nCount_RNA", "percent.mt", "percent_hb", "percent_ribo"), ncol = 5)
-violinQC
-
-# Visualize count vs feature
-count_feature <- FeatureScatter(asthm, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
-count_feature
-
-# Visualize count vs mito content
-count_mito <- FeatureScatter(asthm, feature1 = "nCount_RNA", feature2 = "percent.mt")
-count_mito
 
 # Filter the cells based on your QC metrics.
-asthm <- subset(asthm, subset = nFeature_RNA > 200 & nFeature_RNA < 1500 & percent.mt < 5 & percent_hb < 1 & log10GenesPerUMI > 0.8 & nCount_RNA > 500)
+#asthm <- subset(asthm, subset = nFeature_RNA > 200 & nFeature_RNA < 1500 & percent.mt < 5 & percent_hb < 1 & log10GenesPerUMI > 0.8 & nCount_RNA > 500)
 
 # Gene level filtering
 ## filter out ribosomal genes
-asthm<- asthm[ ! grepl('^RP[SL]', rownames(asthm)), ]
+#asthm<- asthm[ ! grepl('^RP[SL]', rownames(asthm)), ]
 
 # Extract counts
 counts <- GetAssayData(object = asthm, slot = "counts")
@@ -123,6 +194,16 @@ filtered_counts <- counts[keep_genes, ]
 
 # Reassign to filtered Seurat object
 asthm <- CreateSeuratObject(filtered_counts, meta.data = asthm@meta.data)
+
+
+
+
+
+
+
+
+
+
 
 # Do a log-normalization following Seurat’s standard workflow.
 asthm <- NormalizeData(asthm, normalization.method = "LogNormalize", scale.factor = 10000)
@@ -168,3 +249,20 @@ dbl.dens <- computeDoubletDensity(sce, subset.row=top.var, d=ncol(reducedDim(sce
 sce$DoubletScore <- dbl.dens
 dbl.calls <- doubletThresholding(data.frame(score=dbl.dens), method="griffiths", returnType="call")
 summary(dbl.calls)
+
+### Prior plots ###
+
+data_asthm
+
+# Visualize the number of cell counts per diseasegroup
+cell_counts <- asthm[[]] %>%
+  ggplot(aes(x=diseasegroup, fill=diseasegroup)) +
+  geom_bar() +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
+  theme(plot.title = element_text(hjust=0.5, face="bold")) +
+  ggtitle("NCells")
+
+cell_counts
+
+ggsave("Cell_counts.png", cell_counts, path= "../Plots/QC")
