@@ -22,9 +22,10 @@ data_asthm <- list(treg_asthm, teff_asthm)
 
 # ---------------------- Quality Control---------------------- #
 
-# Compute commonly used QC metrics.
+##### Compute commonly used QC metrics.
 
 for (i in 1:2){
+
   # Calculate novelty score
   data_asthm[[i]]$log10GenesPerUMI <- log10(data_asthm[[i]]$nFeature_RNA) / log10(data_asthm[[i]]$nCount_RNA)
 
@@ -48,7 +49,8 @@ for (i in 1:2){
 treg_asthm <- data_asthm[[1]]
 teff_asthm <- data_asthm[[2]]
 
-# Plot the results.
+##### Plot the results (violin plots).
+
 plot_vln_treg <- VlnPlot(treg_asthm,
                          features = c("nFeature_RNA", "nCount_RNA", "percent_mt", "percent_ribo", "percent_hb"),
                          cols = "#6699CC",
@@ -57,12 +59,17 @@ plot_vln_teff <- VlnPlot(teff_asthm,
                          features = c("nFeature_RNA", "nCount_RNA", "percent_mt", "percent_ribo", "percent_hb"),
                          cols = "#6699CC",
                          combine = FALSE)
+
 plot_vln_list <- list(plot_vln_treg, plot_vln_teff)
 
-title <- c("Number of genes", "Number RNA molecules", "Mitochondrial content (%)", "Ribosomal content (%)", "Hemoglobin content (%)")
+title <- c("Number of genes",
+           "Number RNA molecules",
+           "Mitochondrial content (%)",
+           "Ribosomal content (%)",
+           "Hemoglobin content (%)")
 
 threshold_treg <- list(c(250, 1500), 500, 5, 1, 1)
-threshold_teff <- list(c(250, 1750), 500, 5, 1, 1)
+threshold_teff <- list(c(250, 1750), 500, 8, 1, 1)
 threshold_list <- list(threshold_treg, threshold_teff)
 
 for (i in 1:2){
@@ -85,9 +92,12 @@ plot_vln_treg <- wrap_plots(plot_vln_list[[1]],
 plot_vln_teff <- wrap_plots(plot_vln_list[[2]],
                             ncol = 5)
 
+##### Plot the results (density plots).
+
 plot_dens_list <- list()
 
 for (i in 1:2){
+
   plot_dens <- list()
 
   # Visualize the distribution of genes.
@@ -153,13 +163,20 @@ for (i in 1:2){
   plot_dens_list[[i]] <- plot_dens
 }
 
+##### Plot the results (scatter plots).
+
 plot_scatter_list <- list()
 
 for (i in 1:2){
+
   plot_scatter <- list()
+
+  # Visualize number of RNA molecules vs. number of genes.
   plot_scatter[[1]] <- FeatureScatter(data_asthm[[i]],
                                       feature1 = "nCount_RNA",
                                       feature2 = "nFeature_RNA")
+
+  # Visualize number of RNA molecules vs. percent mitochondrial content.
   plot_scatter[[2]] <- FeatureScatter(data_asthm[[i]],
                                       feature1 = "nCount_RNA",
                                       feature2 = "percent_mt")
@@ -173,12 +190,25 @@ for (i in 1:2){
 #ggsave("mito.png", mito, path= "../Plots/QC")
 
 
-# Filter the cells based on your QC metrics.
-#asthm <- subset(asthm, subset = nFeature_RNA > 200 & nFeature_RNA < 1500 & percent.mt < 5 & percent_hb < 1 & log10GenesPerUMI > 0.8 & nCount_RNA > 500)
+threshold_treg <- list(c(250, 1500), 500, 5, 1, 1)
+threshold_teff <- list(c(250, 1750), 500, 8, 1, 1)
 
-# Gene level filtering
-## filter out ribosomal genes
-#asthm<- asthm[ ! grepl('^RP[SL]', rownames(asthm)), ]
+
+# Filter the cells based on your QC metrics.
+treg_asthm <- subset(treg_asthm,
+                     subset = nFeature_RNA > 250 & nFeature_RNA < 1500 & percent_mt < 5 & percent_hb < 1 & log10GenesPerUMI > 0.8 & nCount_RNA > 500)
+# Filter out ribosomal genes.
+treg_asthm <- treg_asthm[!grepl('^RP[SL]', rownames(asthm)), ]
+
+# Filter the cells based on your QC metrics.
+teff_asthm <- subset(teff_asthm,
+                     subset = nFeature_RNA > 250 & nFeature_RNA < 1750 & percent_mt < 8 & percent_hb < 1 & log10GenesPerUMI > 0.8 & nCount_RNA > 500)
+# Filter out ribosomal genes.
+teff_asthm <- teff_asthm[!grepl('^RP[SL]', rownames(asthm)), ]
+
+saveRDS(treg_asthm, "Data/treg_asthm_filtered.rds")
+saveRDS(teff_asthm, "Data/teff_asthm_filtered.rds")
+
 
 # Extract counts
 counts <- GetAssayData(object = asthm, slot = "counts")
