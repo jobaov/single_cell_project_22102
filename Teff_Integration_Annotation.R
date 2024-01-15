@@ -19,11 +19,35 @@ library(purrr)
 #Load Seurat object
 data <- readRDS("")
 
+#Clustering
+
+#Run FindNeighbors and FindClusters
+data <- FindNeighbors(data, dims = 1:30)
+data <- FindClusters(data, resolution = c(0.1, 0.2, 0.3, 0.5, 0.7))
+ElbowPlot(data)
+
+data <- RunUMAP(data, dims = 1:30)
+
+DimPlot(data, group.by = "RNA_snn_res.0.1", label = TRUE, reduction = "umap")
+
+DimPlot(data, group.by = "RNA_snn_res.0.2", label = TRUE, reduction = "umap")
+
+DimPlot(data, group.by = "RNA_snn_res.0.3", label = TRUE, reduction = "umap")
+
+DimPlot(data, group.by = "RNA_snn_res.0.5", label = TRUE, reduction = "umap")
+
+DimPlot(data, group.by = "RNA_snn_res.0.7", label = TRUE, reduction = "umap")
+
+
+####################################################################################
+
+# Sample integration
+
+
 #Visualize Umap grouped by "batch effect"
 DimPlot(data, reduction = "umap", group.by = "")
-DimPlot(data, reduction = "umap", split.by = "")
 
-## Sample integration
+DimPlot(data, reduction = "umap", split.by = "")
 
 #Split the dataset into a list of Seurat objects (xx, xx).
 #Normalize and identify variable features for each group independently.
@@ -66,7 +90,9 @@ pbmc.integrated <- RunPCA(pbmc.integrated, features = VariableFeatures(object = 
 ElbowPlot(pbmc.integrated)
 
 pbmc.integrated <- FindNeighbors(pbmc.integrated, dims = 1:13)
-pbmc.integrated <- FindClusters(pbmc.integrated, resolution = c(0.3, 0.5, 0.7))
+pbmc.integrated <- FindClusters(pbmc.integrated, resolution = c(0.1, 0.2, 0.3, 0.5, 0.7))
+
+########################################################################################
 
 # Visualize the new clustering with a UMAP split by the batch corrected group.
 
@@ -103,9 +129,47 @@ clustree(pbmc.integrated, prefix = "integrated_snn_res.")
 # set idents to the best resolution
 Idents(pbmc.integrated) <- "RNA_snn_res.0.3"
 
-# 3. Cell Type assignment
+
+####################################################################################
+# Cell Type assignment
 
 #feature plots
+#Inspect cluster markers
+FeaturePlot(AS_NA,
+            reduction = "umap",
+            features = c("IFNG", "XCL1", "IL2"),
+            order = TRUE,
+            min.cutoff = 'q10',
+            label = TRUE) #cluster 3 = TH1 and chemokines
+
+FeaturePlot(AS_NA,
+            reduction = "umap",
+            features = c("IL5", "IL13"),
+            order = TRUE,
+            min.cutoff = 'q10',
+            label = TRUE) # cluster 4 = type 2 cytokine genes TH2 cells
+
+FeaturePlot(AS_NA,
+            reduction = "umap",
+            features = c("IL17F", "IL22", "IL17A"),
+            order = TRUE,
+            min.cutoff = 'q10',
+            label = TRUE) #cluster 0 and cluster 2 = TH17
+
+FeaturePlot(AS_NA,
+            reduction = "umap",
+            features = c("IFI6", "MX1", "ISG20", "OAS1", "IFIT1", "IFI44L"),
+            order = TRUE,
+            min.cutoff = 'q10',
+            label = TRUE) #TH-IFNR subset
+
+FeaturePlot(AS_NA,
+            reduction = "umap",
+            features = c("IL7R", "S100A4"),
+            order = TRUE,
+            min.cutoff = 'q10',
+            label = TRUE) #CD4 memory cells
+
 
 # Identify conserved cell type markers to identify the cell types corresponding to the remaining clusters
 
