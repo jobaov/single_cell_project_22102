@@ -238,6 +238,44 @@ treg_asthm <- CreateSeuratObject(filtered_counts_treg,
 teff_asthm <- CreateSeuratObject(filtered_counts_teff,
                                  meta.data = teff_asthm@meta.data)
 
+# Convert your seurat object to a sce object.
+treg_sce <- as.SingleCellExperiment(treg_asthm)
+teff_sce <- as.SingleCellExperiment(teff_asthm)
+
+# Check for doublets.
+treg_top.var <- VariableFeatures(treg_asthm)
+teff_top.var <- VariableFeatures(teff_asthm)
+
+treg_dbl.dens <- computeDoubletDensity(treg_sce,
+                                       subset.row = treg_top.var,
+                                       d = ncol(reducedDim(treg_sce)))
+teff_dbl.dens <- computeDoubletDensity(teff_sce,
+                                       subset.row = teff_top.var,
+                                       d = ncol(reducedDim(teff_sce)))
+treg_sce$DoubletScore <- treg_dbl.dens
+teff_sce$DoubletScore <- teff_dbl.dens
+
+treg_dbl.calls <- doubletThresholding(data.frame(score = treg_dbl.dens),
+                                      method ="griffiths",
+                                      returnType ="call")
+teff_dbl.calls <- doubletThresholding(data.frame(score = teff_dbl.dens),
+                                      method ="griffiths",
+                                      returnType ="call")
+summary(treg_dbl.calls)
+summary(teff_dbl.calls)
+
+# Remove doublets
+# Extract singlet cell indices
+treg_singlet_indices <- which(treg_dbl.calls == "singlet")
+teff_singlet_indices <- which(teff_dbl.calls == "singlet")
+
+# Filter out doublets from the original Seurat object
+treg_asthm <- treg_asthm[, treg_singlet_indices]
+teff_asthm <- teff_asthm[, teff_singlet_indices]
+
+
+
+
 # Do a log-normalization following Seurat’s standard workflow.
 treg_asthm <- NormalizeData(treg_asthm,
                             normalization.method = "LogNormalize",
@@ -277,31 +315,6 @@ teff_asthm <- RunPCA(teff_asthm,
 ElbowPlot(treg_asthm)
 ElbowPlot(teff_asthm)
 
-# Convert your seurat object to a sce object.
-treg_sce <- as.SingleCellExperiment(treg_asthm)
-teff_sce <- as.SingleCellExperiment(teff_asthm)
-
-# Check for doublets.
-treg_top.var <- VariableFeatures(treg_asthm)
-teff_top.var <- VariableFeatures(teff_asthm)
-
-treg_dbl.dens <- computeDoubletDensity(treg_sce,
-                                       subset.row = treg_top.var,
-                                       d = ncol(reducedDim(treg_sce)))
-teff_dbl.dens <- computeDoubletDensity(teff_sce,
-                                       subset.row = teff_top.var,
-                                       d = ncol(reducedDim(teff_sce)))
-treg_sce$DoubletScore <- treg_dbl.dens
-teff_sce$DoubletScore <- teff_dbl.dens
-
-treg_dbl.calls <- doubletThresholding(data.frame(score = treg_dbl.dens),
-                                      method ="griffiths",
-                                      returnType ="call")
-teff_dbl.calls <- doubletThresholding(data.frame(score = teff_dbl.dens),
-                                      method ="griffiths",
-                                      returnType ="call")
-summary(treg_dbl.calls)
-summary(teff_dbl.calls)
 
 saveRDS(treg_asthm, "Data/treg_asthm_filtered.rds")
 saveRDS(teff_asthm, "Data/teff_asthm_filtered.rds")
