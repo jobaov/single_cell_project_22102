@@ -1,4 +1,4 @@
-# Differential cell type abundance - regulatory T cells
+# Differential cell type abundance - effector T cells
 # Last changed: 15/01
 
 # Load libraries
@@ -17,34 +17,34 @@ library(tibble)
 library(tidyr)
 
 # Load data
-treg_asthm <- readRDS("Data/treg_asthm_annotated.rds")
+teff_asthm <- readRDS("Data/teff_asthm_annotated.rds")
 
 #######################################################################################
 # Visual inspection of differential abundances and save plot
 
-dim_diseasegroup <- DimPlot(treg_asthm, split.by = "diseasegroup")
+dim_diseasegroup <- DimPlot(teff_asthm, split.by = "diseasegroup")
 dim_diseasegroup
-ggsave("dim_diseasegroup.png", dim_diseasegroup, path= "Plots/DCAT/Treg")
+ggsave("dim_diseasegroup.png", dim_diseasegroup, path= "Plots/DCAT/Teff")
 
 #######################################################################################
 # Differential Cell Type abundance using DCAT tool
 
 # Create misclassification matrix
-knn_mat = knn_simMat(treg_asthm@graphs$integrated_snn, treg_asthm$Cell_ann)
+knn_mat = knn_simMat(teff_asthm@graphs$integrated_snn, teff_asthm$Cell_ann)
 print(knn_mat)
 
 # Get count matrix  which contains the numbers of cell for each cell type in each sample
-treg_asthm$diseasegroup[treg_asthm$diseasegroup == 'AS_NA'] <- 'Asthm_non-allergic'
-treg_asthm$diseasegroup[treg_asthm$diseasegroup == 'AS_AL'] <- 'Asthm_allergic'
+teff_asthm$diseasegroup[teff_asthm$diseasegroup == 'AS_NA'] <- 'Asthm_non-allergic'
+teff_asthm$diseasegroup[teff_asthm$diseasegroup == 'AS_AL'] <- 'Asthm_allergic'
 
-treg_asthm$id <- paste0(treg_asthm$diseasegroup, treg_asthm$donor)
+teff_asthm$id <- paste0(teff_asthm$diseasegroup, teff_asthm$donor)
 
-count_mat = table(treg_asthm$id, treg_asthm$Cell_ann)
+count_mat = table(teff_asthm$id, teff_asthm$Cell_ann)
 count_mat
 
 # Create design dataframe
 condition_vector <- rep(c("Asthm_allergic", "Asthm_non_allergic"), each = 6)
-treg_design <- data.frame(condition = condition_vector)
+teff_design <- data.frame(condition = condition_vector)
 
 # Perform differential abundance analysis
 results_DA <- dcats_GLM(count_mat, treg_design, knn_mat)
@@ -68,7 +68,7 @@ DCAT_data <- data.frame(
   cell_type = cell_types
 )
 
-saveRDS(DCAT_data, "Data/DCAT/Treg/DCAT_result_data.rds")
+saveRDS(DCAT_data, "Data/DCAT/Teff/DCAT_result_data.rds")
 
 # Create a volcano plot with labels and save
 volcanoplot <- ggplot(DCAT_data, aes(x = log_fold_change, y = neg_log10_p_value, label = cell_type)) +
@@ -81,20 +81,20 @@ volcanoplot <- ggplot(DCAT_data, aes(x = log_fold_change, y = neg_log10_p_value,
     y = "-log10(p-value)"
   )
 volcanoplot
-ggsave("volcanoplot.png", volcanoplot, path= "Plots/DCAT/Treg")
+ggsave("volcanoplot.png", volcanoplot, path= "Plots/DCAT/Teff")
 
 # Create stacked barplots and save
 count_mat_diseasegroup <- table(treg_asthm$diseasegroup, treg_asthm$Cell_ann)
 count_mat_diseasegroup
-saveRDS(count_mat_diseasegroup, "Data/DCAT/Treg/DCAT_stackedplot_data.rds")
+saveRDS(count_mat_diseasegroup, "Data/DCAT/Teff/DCAT_stackedplot_data.rds")
 
 # Create a stacked bar plot with each bar representing a condition
 # Calculate row wise percentages
 percentages <- prop.table(count_mat_diseasegroup, margin = 1) * 100
 
 # Convert data to a data frame for ggplot
-df <- data.frame(DiseaseGroup = rep(c("Asthm_allergic", "Asthm_non-allergic"), each = 3),
-                 CellType = rep(c("TregIFNR", "TregACT1", "TregACT2"), times = 2),
+df <- data.frame(DiseaseGroup = rep(c("Asthm_allergic", "Asthm_non-allergic"), each = x), # number has to be adjusted
+                 CellType = rep(c("z", "y", "x"), times = 2), ## has to be adjusted!!
                  Percentage = as.vector(t(percentages)))
 
 # Create a stacked barplot using ggplot and save
@@ -104,22 +104,22 @@ stacked_bycondition <- ggplot(df, aes(x = DiseaseGroup, y = Percentage, fill = C
        x = "Disease Groups",
        y = "Percentage") +
   theme_minimal() +
-  scale_fill_manual(values = c("blue", "green", "red")) +
+  scale_fill_manual(values = c("blue", "green", "red")) + ## will need more colours!
   geom_text(aes(label = paste0(round(Percentage), "%")),
             position = position_stack(vjust = 0.5), color = "white") +
   theme(legend.position = "right", legend.title = element_blank())
 
 stacked_bycondition
-ggsave("stacked_bycondition.png", stacked_bycondition, path= "Plots/DCAT/Treg")
+ggsave("stacked_bycondition.png", stacked_bycondition, path= "Plots/DCAT/Teff")
 
 # Create a stacked barplot with each bar represeting a celltype
 # Calculate column-wise percentages
 percentages02 <- prop.table(count_mat_diseasegroup, margin = 2) * 100
 
 # Convert data to a data frame for ggplot
-df02 <- data.frame(CellType = rep(c("TregIFNR", "TregACT1", "TregACT2"), each = 2),
-                 DiseaseGroup = rep(c("Asthm_allergic", "Asthm_non-allergic"), times = 3),
-                 Percentage = as.vector(percentages02))
+df02 <- data.frame(CellType = rep(c("y", "y", "x"), each = 2), ## adjust!
+                   DiseaseGroup = rep(c("Asthm_allergic", "Asthm_non-allergic"), times = x), # adjust number
+                   Percentage = as.vector(percentages02))
 
 # Create a stacked barplot using ggplot and save
 stacked_bycelltype <- ggplot(df02, aes(x = CellType, y = Percentage, fill = DiseaseGroup)) +
@@ -134,4 +134,4 @@ stacked_bycelltype <- ggplot(df02, aes(x = CellType, y = Percentage, fill = Dise
   theme(legend.position = "top")
 
 stacked_bycelltype
-ggsave("stacked_bycelltype.png", stacked_bycelltype, path= "Plots/DCAT/Treg")
+ggsave("stacked_bycelltype.png", stacked_bycelltype, path= "Plots/DCAT/Teff")
