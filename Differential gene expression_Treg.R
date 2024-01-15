@@ -22,7 +22,7 @@ treg_asthm$id <- paste0(treg_asthm$diseasegroup, treg_asthm$donor)
 
 # Aggregate counts to sample level
 counts <- AggregateExpression(immune.sub,
-                              group.by = c("celltype", "id"), ## adjust celltype
+                              group.by = c("Cell_ann", "id"),
                               assays =  "RNA",
                               return.seurat = FALSE)
 
@@ -50,9 +50,9 @@ cts.split.modified <- lapply(cts.split, function(x){
 
 # Create an empty list to store results for each cell type
 results_list <- list()
-for (cell_type in names(cts.split.modified)) {
+for (Cell_ann in names(cts.split.modified)) {
   # Step 1: Extract counts for the current cell type
-  counts_current <- cts.split.modified[[cell_type]]
+  counts_current <- cts.split.modified[[Cell_ann]]
 
 
 
@@ -80,7 +80,7 @@ res <- results(dds, name = "condition_Non-allergic_vs_Allergic")
 res_tbl <- as.data.frame(res) ## not sure why yet
 
 # Save the results for the current cell type
-results_list[[cell_type]] <- res_tbl
+results_list[[Cell_ann]] <- res_tbl
 }
 
 # Turn the DESeq2 results object into a tibble for use with tidyverse functions
