@@ -17,13 +17,19 @@ library(metap)
 library(tibble)
 library(purrr)
 
+treg_singlet_indices <- which(treg_dbl.calls == "singlet")
+teff_singlet_indices <- which(teff_dbl.calls == "singlet")
 
-#Load Seurat object
-data <- readRDS("")
+# Filter out doublets from the original Seurat object
+treg_asthm <- treg_asthm[, treg_singlet_indices]
+teff_asthm <- teff_asthm[, teff_singlet_indices]
 
-#Clustering
+# Load Seurat object
+data <- readRDS("Data/treg_asthm_filtered.rds")
 
-#Run FindNeighbors and FindClusters
+# Clustering
+
+# Run FindNeighbors and FindClusters
 data <- FindNeighbors(data, dims = 1:30)
 data <- FindClusters(data, resolution = c(0.1, 0.2, 0.3, 0.5, 0.7))
 ElbowPlot(data)
@@ -40,76 +46,74 @@ DimPlot(data, group.by = "RNA_snn_res.0.5", label = TRUE, reduction = "umap")
 
 DimPlot(data, group.by = "RNA_snn_res.0.7", label = TRUE, reduction = "umap")
 
-
 ####################################################################################
 
 # Sample integration
 
+# Visualize Umap grouped by "batch effect"
+DimPlot(data, reduction = "umap", group.by = "diseasegroup")
 
-#Visualize Umap grouped by "batch effect"
-DimPlot(data, reduction = "umap", group.by = "")
+DimPlot(data, reduction = "umap", split.by = "diseasegroup")
 
-DimPlot(data, reduction = "umap", split.by = "")
+# Split the dataset into a list of Seurat objects (xx, xx).
+# Normalize and identify variable features for each group independently.
 
-#Split the dataset into a list of Seurat objects (xx, xx).
-#Normalize and identify variable features for each group independently.
-
-
-#Add group to split by
-obj.list <- SplitObject(data, split.by = "")
+# Add group to split by
+obj.list <- SplitObject(data, split.by = "diseasegroup")
 
 for(i in 1:length(obj.list)){
   obj.list[[i]] <- NormalizeData(object = obj.list[[i]])
   obj.list[[i]]<- FindVariableFeatures(object = obj.list[[i]])
 }
 
-
-#Speed up integration, by running as parallel session
+# Speed up integration, by running as parallel session
 library(future)
 plan("multisession", workers = 4)
 options(future.globals.maxSize = 8000 * 1024^2)
-
 
 features <- SelectIntegrationFeatures(object.list = obj.list)
 
 anchors <- FindIntegrationAnchors(object.list = obj.list,
                                   anchor.features = features)
 
-pbmc.integrated <- IntegrateData(anchorset = anchors)
+data.integrated <- IntegrateData(anchorset = anchors)
 
-
-DefaultAssay(pbmc.integrated) <- "integrated"
+DefaultAssay(data.integrated) <- "integrated"
 plan("sequential")
 
-#Run the standard workflow for visualization and clustering (scaling, pca, find neighbors
-#and clusters with different resolutions)
+# Run the standard workflow for visualization and clustering (scaling, pca, find neighbors
+# and clusters with different resolutions)
 
-all.genes <- rownames(pbmc.integrated)
-pbmc.integrated <- ScaleData(pbmc.integrated, features = all.genes)
+all.genes <- rownames(data.integrated)
+data.integrated <- ScaleData(data.integrated,
+                             features = all.genes)
 
-pbmc.integrated <- RunPCA(pbmc.integrated, features = VariableFeatures(object = pbmc.integrated))
+data.integrated <- RunPCA(data.integrated,
+                          features = VariableFeatures(object = data.integrated))
 
-ElbowPlot(pbmc.integrated)
+ElbowPlot(data.integrated)
 
-pbmc.integrated <- FindNeighbors(pbmc.integrated, dims = 1:13)
-pbmc.integrated <- FindClusters(pbmc.integrated, resolution = c(0.1, 0.2, 0.3, 0.5, 0.7))
+data.integrated <- FindNeighbors(data.integrated,
+                                 dims = 1:30)
+data.integrated <- FindClusters(data.integrated,
+                                resolution = c(0.1, 0.2, 0.3, 0.5, 0.7))
 
 ########################################################################################
 
 # Visualize the new clustering with a UMAP split by the batch corrected group.
 
-pbmc.integrated <- RunUMAP(pbmc.integrated, dims = 1:30)
+data.integrated <- RunUMAP(data.integrated,
+                           dims = 1:30)
 
-DimPlot(pbmc.integrated, reduction = "umap")
+DimPlot(data.integrated, reduction = "umap")
 
-DimPlot(pbmc.integrated, group.by = "", label = TRUE)
-DimPlot(pbmc.integrated, split.by = "", label = TRUE)
-
+DimPlot(data.integrated, group.by = "diseasegroup", label = TRUE)
+DimPlot(data.integrated, split.by = "diseasegroup", label = TRUE)
 
 # UMAP of cells in each cluster by sample
-DimPlot(pbmc.integrated,
+DimPlot(data.integrated,
         label = TRUE,
-        split.by = "")  + NoLegend()
+        split.by = "diseasegroup")  + NoLegend()
 
 metrics <-  c("nCount_RNA", "nFeature_RNA", "percent.mt")
 
@@ -172,10 +176,9 @@ FeaturePlot(AS_NA,
             min.cutoff = 'q10',
             label = TRUE) #CD4 memory cells
 
-
 # Identify conserved cell type markers to identify the cell types corresponding to the remaining clusters
 
-#Identify conserved cell type markers
+# Identify conserved cell type markers
 DefaultAssay(pbmc.integrated) <- "RNA"
 
 cluster0_conserved_markers <- FindConservedMarkers(pbmc.integrated,
@@ -183,7 +186,6 @@ cluster0_conserved_markers <- FindConservedMarkers(pbmc.integrated,
                                                    grouping.var = "diseasegroup",
                                                    only.pos = TRUE, min.pct = 0.25,  min.diff.pct = 0.25,
                                                    logfc.threshold = 0.25)
-
 
 # Rename all identities
 pbmc.integrated <- RenameIdents(object = pbmc.integrated,
