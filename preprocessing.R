@@ -29,6 +29,12 @@ for (i in 1:2){
   # Calculate novelty score
   data_asthm[[i]]$log10GenesPerUMI <- log10(data_asthm[[i]]$nFeature_RNA) / log10(data_asthm[[i]]$nCount_RNA)
 
+  # Update nCount_RNA
+  data_asthm[[i]]$nCount_RNA <- colSums(data_asthm[[i]]@assays$RNA$counts)
+
+  # Update nFeatures_RNA
+  data_asthm[[i]]$nFeature_RNA <- colSums(data_asthm[[i]]@assays$RNA$counts != 0)
+
   # Mitochondrial content
   data_asthm[[i]] <- PercentageFeatureSet(data_asthm[[i]],
                                           pattern = "^MT-",
@@ -52,7 +58,11 @@ teff_asthm <- data_asthm[[2]]
 ##### Plot the results (violin plots).
 
 plot_vln_treg <- VlnPlot(treg_asthm,
-                         features = c("nFeature_RNA", "nCount_RNA", "percent_mt", "percent_ribo", "percent_hb"),
+                         features = c("nFeature_RNA",
+                                      "nCount_RNA",
+                                      "percent_mt",
+                                      "percent_ribo",
+                                      "percent_hb"),
                          cols = "#6699CC",
                          combine = FALSE)
 plot_vln_teff <- VlnPlot(teff_asthm,
@@ -68,8 +78,8 @@ title <- c("Number of genes",
            "Ribosomal content (%)",
            "Hemoglobin content (%)")
 
-threshold_treg <- list(c(250, 1500), 500, 5, 1, 1)
-threshold_teff <- list(c(250, 1750), 500, 8, 1, 1)
+threshold_treg <- list(c(250, 1600), 500, 5, 0, 1)
+threshold_teff <- list(c(250, 1600), 500, 5, 0, 1)
 threshold_list <- list(threshold_treg, threshold_teff)
 
 for (i in 1:2){
@@ -87,9 +97,9 @@ for (i in 1:2){
   plot_vln_list[[i]] <- plot_vln
 }
 
-plot_vln_treg <- wrap_plots(plot_vln_list[[1]],
+plot_vln_treg <- wrap_plots(plot_vln_list[[1]], # Remove line ribosomal
                             ncol = 5)
-plot_vln_teff <- wrap_plots(plot_vln_list[[2]],
+plot_vln_teff <- wrap_plots(plot_vln_list[[2]], # Mito to 5
                             ncol = 5)
 
 ##### Plot the results (density plots).
@@ -190,109 +200,108 @@ for (i in 1:2){
 #ggsave("mito.png", mito, path= "../Plots/QC")
 
 
-threshold_treg <- list(c(250, 1500), 500, 5, 1, 1)
-threshold_teff <- list(c(250, 1750), 500, 8, 1, 1)
-
-
 # Filter the cells based on your QC metrics.
 treg_asthm <- subset(treg_asthm,
-                     subset = nFeature_RNA > 250 & nFeature_RNA < 1500 & percent_mt < 5 & percent_hb < 1 & log10GenesPerUMI > 0.8 & nCount_RNA > 500)
+                     subset = nFeature_RNA > 250 & nFeature_RNA < 1600 & percent_mt < 5 & percent_hb < 1 & log10GenesPerUMI > 0.8 & nCount_RNA > 500)
+
 # Filter out ribosomal genes.
-treg_asthm <- treg_asthm[!grepl('^RP[SL]', rownames(asthm)), ]
+treg_asthm <- treg_asthm[!grepl('^RP[SL]', rownames(treg_asthm)), ]
 
 # Filter the cells based on your QC metrics.
 teff_asthm <- subset(teff_asthm,
-                     subset = nFeature_RNA > 250 & nFeature_RNA < 1750 & percent_mt < 8 & percent_hb < 1 & log10GenesPerUMI > 0.8 & nCount_RNA > 500)
+                     subset = nFeature_RNA > 250 & nFeature_RNA < 1600 & percent_mt < 5 & percent_hb < 1 & log10GenesPerUMI > 0.8 & nCount_RNA > 500)
+
 # Filter out ribosomal genes.
-teff_asthm <- teff_asthm[!grepl('^RP[SL]', rownames(asthm)), ]
-
-saveRDS(treg_asthm, "Data/treg_asthm_filtered.rds")
-saveRDS(teff_asthm, "Data/teff_asthm_filtered.rds")
-
+teff_asthm <- teff_asthm[!grepl('^RP[SL]', rownames(teff_asthm)), ]
 
 # Extract counts
-counts <- GetAssayData(object = asthm, slot = "counts")
+counts_treg <- GetAssayData(object = treg_asthm,
+                            slot = "counts")
+counts_teff <- GetAssayData(object = teff_asthm,
+                            slot = "counts")
 
 # Output a logical matrix specifying for each gene on whether or not there are more than zero counts per cell
-nonzero <- counts > 0
+nonzero_treg <- counts_treg > 0
+nonzero_teff <- counts_teff > 0
 
-# Sums all TRUE values and returns TRUE if more than 10 TRUE values per gene
-keep_genes <- Matrix::rowSums(nonzero) >= 4
+# Sums all TRUE values and returns TRUE if more than 4 TRUE values per gene
+keep_genes_treg <- Matrix::rowSums(nonzero_treg) >= 4
+keep_genes_teff <- Matrix::rowSums(nonzero_teff) >= 4
 
-# Only keeping those genes expressed in more than 10 cells
-filtered_counts <- counts[keep_genes, ]
+# Only keeping those genes expressed in more than 4 cells
+filtered_counts_treg <- counts_treg[keep_genes_treg, ]
+filtered_counts_teff <- counts_teff[keep_genes_teff, ]
 
 # Reassign to filtered Seurat object
-asthm <- CreateSeuratObject(filtered_counts, meta.data = asthm@meta.data)
-
-
-
-
-
-
-
-
-
-
+treg_asthm <- CreateSeuratObject(filtered_counts_treg,
+                                 meta.data = treg_asthm@meta.data)
+teff_asthm <- CreateSeuratObject(filtered_counts_teff,
+                                 meta.data = teff_asthm@meta.data)
 
 # Do a log-normalization following Seurat’s standard workflow.
-asthm <- NormalizeData(asthm, normalization.method = "LogNormalize", scale.factor = 10000)
+treg_asthm <- NormalizeData(treg_asthm,
+                            normalization.method = "LogNormalize",
+                            scale.factor = 10000)
+teff_asthm <- NormalizeData(teff_asthm,
+                            normalization.method = "LogNormalize",
+                            scale.factor = 10000)
 
 # Identifying highly variable features.
-asthm <- FindVariableFeatures(asthm, selection.method = "vst", nfeatures = 2000)
+treg_asthm <- FindVariableFeatures(treg_asthm,
+                                   selection.method = "vst",
+                                   nfeatures = 2000)
+teff_asthm <- FindVariableFeatures(teff_asthm,
+                                   selection.method = "vst",
+                                   nfeatures = 2000)
 
 # Plot variable features.
-VariableFeaturePlot(asthm) +
+VariableFeaturePlot(treg_asthm) +
+  scale_y_continuous(limits = c(0, 10))
+
+VariableFeaturePlot(teff_asthm) +
   scale_y_continuous(limits = c(0, 10))
 
 # Scale the data.
-#Scale the data
-asthm <- ScaleData(asthm, features = VariableFeatures(object = asthm))
+treg_asthm <- ScaleData(treg_asthm,
+                        features = VariableFeatures(object = treg_asthm))
+teff_asthm <- ScaleData(teff_asthm,
+                        features = VariableFeatures(object = teff_asthm))
 
 # Perform linear dimensionality reduction.
-asthm<- RunPCA(asthm, features = VariableFeatures(object = asthm))
+treg_asthm <- RunPCA(treg_asthm,
+                     features = VariableFeatures(object = treg_asthm))
+teff_asthm <- RunPCA(teff_asthm,
+                     features = VariableFeatures(object = teff_asthm))
 
 # Elbow plot. The “elbow point” determines the dimensionality of the data.
-ElbowPlot(asthm)
-
-# Perform clustering of cells.
-asthm <- FindNeighbors(asthm, dims = 1:10)
-asthm<- FindClusters(asthm, resolution = c(0.3, 0.5, 0.7))
-clustree(asthm)
-DimPlot(asthm, group.by = "RNA_snn_res.0.3", label = TRUE)
-
-#  Perform a non-linear reduction(UMAP).
-asthm <- RunUMAP(asthm, dims = 1:10)
-
-# Plot UMAP grouped by clusters.
-DimPlot(asthm, group.by = "RNA_snn_res.0.3", label = TRUE)
-
-# Determine resolution for clustering.
-Idents(asthm) <- "RNA_snn_res.0.3"
+ElbowPlot(treg_asthm)
+ElbowPlot(teff_asthm)
 
 # Convert your seurat object to a sce object.
-sce <- as.SingleCellExperiment(asthm)
+treg_sce <- as.SingleCellExperiment(treg_asthm)
+teff_sce <- as.SingleCellExperiment(teff_asthm)
 
 # Check for doublets.
-top.var <- VariableFeatures(asthm)
-dbl.dens <- computeDoubletDensity(sce, subset.row=top.var, d=ncol(reducedDim(sce)))
-sce$DoubletScore <- dbl.dens
-dbl.calls <- doubletThresholding(data.frame(score=dbl.dens), method="griffiths", returnType="call")
-summary(dbl.calls)
+treg_top.var <- VariableFeatures(treg_asthm)
+teff_top.var <- VariableFeatures(teff_asthm)
 
-### Prior plots ###
+treg_dbl.dens <- computeDoubletDensity(treg_sce,
+                                       subset.row = treg_top.var,
+                                       d = ncol(reducedDim(treg_sce)))
+teff_dbl.dens <- computeDoubletDensity(teff_sce,
+                                       subset.row = teff_top.var,
+                                       d = ncol(reducedDim(teff_sce)))
+treg_sce$DoubletScore <- treg_dbl.dens
+teff_sce$DoubletScore <- teff_dbl.dens
 
-data_asthm
+treg_dbl.calls <- doubletThresholding(data.frame(score = treg_dbl.dens),
+                                      method ="griffiths",
+                                      returnType ="call")
+teff_dbl.calls <- doubletThresholding(data.frame(score = teff_dbl.dens),
+                                      method ="griffiths",
+                                      returnType ="call")
+summary(treg_dbl.calls)
+summary(teff_dbl.calls)
 
-# Visualize the number of cell counts per diseasegroup
-cell_counts <- asthm[[]] %>%
-  ggplot(aes(x=diseasegroup, fill=diseasegroup)) +
-  geom_bar() +
-  theme_classic() +
-  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
-  theme(plot.title = element_text(hjust=0.5, face="bold")) +
-  ggtitle("NCells")
-
-cell_counts
-
-ggsave("Cell_counts.png", cell_counts, path= "../Plots/QC")
+saveRDS(treg_asthm, "Data/treg_asthm_filtered.rds")
+saveRDS(teff_asthm, "Data/teff_asthm_filtered.rds")
