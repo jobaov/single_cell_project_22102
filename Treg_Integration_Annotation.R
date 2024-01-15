@@ -16,6 +16,7 @@ library(multtest)
 library(metap)
 library(tibble)
 library(purrr)
+library(clustree)
 
 treg_singlet_indices <- which(treg_dbl.calls == "singlet")
 teff_singlet_indices <- which(teff_dbl.calls == "singlet")
@@ -117,7 +118,7 @@ DimPlot(data.integrated,
 
 metrics <-  c("nCount_RNA", "nFeature_RNA", "percent.mt")
 
-FeaturePlot(pbmc.integrated,
+FeaturePlot(data.integrated,
             reduction = "umap",
             features = metrics,
             pt.size = 0.4,
@@ -125,23 +126,33 @@ FeaturePlot(pbmc.integrated,
             min.cutoff = 'q10',
             label = TRUE)
 
-#Determine what resolution is the most optimal using clustree? and set Idents to the best resolution
+# Determine what resolution is the most optimal using clustree? and set Idents to the best resolution
 
 library(clustree)
 # integrated_snn_res.0.1 to 0.7 correspond to the different clustering resolutions
 
-clustree(pbmc.integrated, prefix = "integrated_snn_res.")
+clustree(data.integrated, prefix = "integrated_snn_res.")
 
 # set idents to the best resolution
-Idents(pbmc.integrated) <- "RNA_snn_res.0.3"
+Idents(data.integrated) <- "integrated_snn_res.0.2"
 
+DimPlot(data.integrated, group.by = "integrated_snn_res.0.2", label = TRUE)
 
 ####################################################################################
 # Cell Type assignment
 
 #feature plots
+
 #Inspect cluster markers
-FeaturePlot(AS_NA,
+
+FeaturePlot(data.integrated,
+            reduction = "umap",
+            features = c("IFI6", "MX1", "ISG20", "OAS1", "IFIT1", "IFI44L"),
+            order = TRUE,
+            min.cutoff = 'q10',
+            label = TRUE) # TH-IFNR subset
+
+FeaturePlot(,
             reduction = "umap",
             features = c("IFNG", "XCL1", "IL2"),
             order = TRUE,
@@ -162,7 +173,7 @@ FeaturePlot(AS_NA,
             min.cutoff = 'q10',
             label = TRUE) #cluster 0 and cluster 2 = TH17
 
-FeaturePlot(AS_NA,
+FeaturePlot(data.integrated,
             reduction = "umap",
             features = c("IFI6", "MX1", "ISG20", "OAS1", "IFIT1", "IFI44L"),
             order = TRUE,
@@ -179,51 +190,75 @@ FeaturePlot(AS_NA,
 # Identify conserved cell type markers to identify the cell types corresponding to the remaining clusters
 
 # Identify conserved cell type markers
-DefaultAssay(pbmc.integrated) <- "RNA"
+DefaultAssay(data.integrated) <- "RNA"
 
-cluster0_conserved_markers <- FindConservedMarkers(pbmc.integrated,
+data.integrated <- JoinLayers(data.integrated)
+
+cluster0_conserved_markers <- FindConservedMarkers(data.integrated,
                                                    ident.1 = 0,
                                                    grouping.var = "diseasegroup",
-                                                   only.pos = TRUE, min.pct = 0.25,  min.diff.pct = 0.25,
+                                                   only.pos = TRUE,
+                                                   min.pct = 0.25,
+                                                   min.diff.pct = 0.25,
                                                    logfc.threshold = 0.25)
 
+cluster1_conserved_markers <- FindConservedMarkers(data.integrated,
+                                                   ident.1 = 1,
+                                                   grouping.var = "diseasegroup",
+                                                   only.pos = TRUE,
+                                                   min.pct = 0.25,
+                                                   min.diff.pct = 0.25,
+                                                   logfc.threshold = 0.25)
+
+cluster2_conserved_markers <- FindConservedMarkers(data.integrated,
+                                                   ident.1 = 2,
+                                                   grouping.var = "diseasegroup",
+                                                   only.pos = TRUE,
+                                                   min.pct = 0.25,
+                                                   min.diff.pct = 0.25,
+                                                   logfc.threshold = 0.25)
+
+annotations <- read.csv("/home/projects/22102_single_cell/day3/annotation.csv")
+
+# Combine markers with gene descriptions
+cluster0_ann_markers <- cluster0_conserved_markers %>%
+  rownames_to_column(var="gene") %>%
+  left_join(y = unique(annotations[, c("gene_name", "description")]),
+            by = c("gene" = "gene_name"))
+
+# Combine markers with gene descriptions
+cluster1_ann_markers <- cluster1_conserved_markers %>%
+  rownames_to_column(var="gene") %>%
+  left_join(y = unique(annotations[, c("gene_name", "description")]),
+            by = c("gene" = "gene_name"))
+
+# Combine markers with gene descriptions
+cluster2_ann_markers <- cluster2_conserved_markers %>%
+  rownames_to_column(var="gene") %>%
+  left_join(y = unique(annotations[, c("gene_name", "description")]),
+            by = c("gene" = "gene_name"))
+
 # Rename all identities
-pbmc.integrated <- RenameIdents(object = pbmc.integrated,
-                                "0" = "T-cells",
-                                "1" = "T-cells",
-                                "2" = "T-cells",
-                                "3" = "T-cells",
-                                "4" = "NK cells",
-                                "5" = "Monocytes",
-                                "6" = "T-cells",
-                                "7" = "Monocytes",
-                                "8" = "NK cells",
-                                "9" = "Monocytes",
-                                "10" = "B-cells",
-                                "11" = "Monocytes",
-                                "12" = "Platelet")
+data.integrated <- RenameIdents(object = data.integrated,
+                                "0" = "TregIFNR",
+                                "1" = "TregACT1",
+                                "2" = "TregACT2")
 
 # Create a new column in metadata with cell type annotations from idents
-pbmc.integrated@meta.data$Cell_ann <- Idents(pbmc.integrated)
+data.integrated@meta.data$Cell_ann <- Idents(data.integrated)
 
 # Now, you can view the updated metadata
-View(pbmc.integrated@meta.data)
+View(data.integrated@meta.data)
 
-
-# visualize data
-clusters <- DimPlot(pbmc.integrated, reduction = 'umap', label = TRUE)
-xx <- DimPlot(pbmc.integrated, reduction = 'umap', group.by = '')
-celltype <- DimPlot(pbmc.integrated, reduction = 'umap', group.by = 'Cell_ann')
+# Visualize data
+clusters <- DimPlot(data.integrated, reduction = 'umap', label = TRUE)
+xx <- DimPlot(data.integrated, reduction = 'umap', split.by = 'diseasegroup')
+celltype <- DimPlot(data.integrated, reduction = 'umap', group.by = 'Cell_ann')
 
 xx|clusters
 xx|celltype
 
-
-
-
-
-
-
+saveRDS(data.integrated, "Data/treg_asthm_annotated.rds")
 
 
 
