@@ -1,4 +1,4 @@
-treg_asthm <- readRDS("Data/treg_asthm_filtered.rds")
+treg_asthm <- readRDS("Data/treg_asthm_annotated.rds")
 library(Seurat)
 library(SingleCellExperiment)
 library(DCATS)
@@ -13,9 +13,7 @@ library(ggrepel)
 library(tibble)
 
 ## ------ Create misclassification matrix
-knn_mat = knn_simMat(treg_asthm@graphs$integrated_snn, treg_asthm$celltype)
-## celltype has to be updated to our annotations!
-## graph has to be updated to be correct snn graph
+knn_mat = knn_simMat(treg_asthm@graphs$integrated_snn, treg_asthm$Cell_ann)
 print(knn_mat)
 
 ## ------ Get count matrix  which contains the numbers of cell for each cell type in each sample
@@ -24,11 +22,11 @@ treg_asthm$diseasegroup[treg_asthm$diseasegroup == 'AS_AL'] <- 'Asthm_allergic'
 
 treg_asthm$id <- paste0(treg_asthm$diseasegroup, treg_asthm$donor)
 
-count_mat = table(treg_asthm$id, treg_asthm$celltype) ## update cell type annotation
+count_mat = table(treg_asthm$id, treg_asthm$Cell_ann) ## update cell type annotation
 count_mat
 
 ## ------ Create design dataframe
-condition_vector <- rep(c("Asthm_non-allergic", "Asthm_allergic"), each = 6)
+condition_vector <- rep(c("Asthm_allergic", "Asthm_non_allergic"), each = 6)
 
 # Create the design dataframe
 treg_design <- data.frame(condition = condition_vector)
@@ -63,3 +61,5 @@ ggplot(volcano_data, aes(x = log_fold_change, y = neg_log10_p_value, label = cel
     y = "-log10(p-value)"
   )
 
+count_mat_diseasegroup = table(treg_asthm$diseasegroup, treg_asthm$Cell_ann)
+count_mat_diseasegroup
