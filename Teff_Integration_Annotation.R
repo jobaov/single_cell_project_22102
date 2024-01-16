@@ -15,9 +15,8 @@ library(metap)
 library(tibble)
 library(purrr)
 
-
 #Load Seurat object
-data <- readRDS("")
+data <- readRDS("Data/teff_asthm_filtered.rds")
 
 #Clustering
 
@@ -45,16 +44,16 @@ DimPlot(data, group.by = "RNA_snn_res.0.7", label = TRUE, reduction = "umap")
 
 
 #Visualize Umap grouped by "batch effect"
-DimPlot(data, reduction = "umap", group.by = "")
+DimPlot(data, reduction = "umap", group.by = "donor")
 
-DimPlot(data, reduction = "umap", split.by = "")
+DimPlot(data, reduction = "umap", split.by = "donor")
 
-#Split the dataset into a list of Seurat objects (xx, xx).
+#Split the dataset into a list of Seurat objects.
 #Normalize and identify variable features for each group independently.
 
 
 #Add group to split by
-obj.list <- SplitObject(data, split.by = "")
+obj.list <- SplitObject(data, split.by = "donor")
 
 for(i in 1:length(obj.list)){
   obj.list[[i]] <- NormalizeData(object = obj.list[[i]])
@@ -77,6 +76,11 @@ pbmc.integrated <- IntegrateData(anchorset = anchors)
 
 
 DefaultAssay(pbmc.integrated) <- "integrated"
+saveRDS(pbmc.integrated, "Data/Teff_integration.rds")
+
+#read integrated data
+pbmc.integrated <- readRDS("Data/Teff_integration.rds")
+
 plan("sequential")
 
 #Run the standard workflow for visualization and clustering (scaling, pca, find neighbors
@@ -89,7 +93,7 @@ pbmc.integrated <- RunPCA(pbmc.integrated, features = VariableFeatures(object = 
 
 ElbowPlot(pbmc.integrated)
 
-pbmc.integrated <- FindNeighbors(pbmc.integrated, dims = 1:13)
+pbmc.integrated <- FindNeighbors(pbmc.integrated, dims = 1:30)
 pbmc.integrated <- FindClusters(pbmc.integrated, resolution = c(0.1, 0.2, 0.3, 0.5, 0.7))
 
 ########################################################################################
@@ -100,16 +104,21 @@ pbmc.integrated <- RunUMAP(pbmc.integrated, dims = 1:30)
 
 DimPlot(pbmc.integrated, reduction = "umap")
 
-DimPlot(pbmc.integrated, group.by = "", label = TRUE)
-DimPlot(pbmc.integrated, split.by = "", label = TRUE)
+umap_integrated_donor <- DimPlot(pbmc.integrated, group.by = "donor", label = TRUE)
+umap_integrated_donor
+ggsave("umap_integrated_donor.png", umap_integrated_donor, path= "Plots/Teff_integration")
+
+umap_integrated_disease <- DimPlot(pbmc.integrated, split.by = "diseasegroup", label = TRUE)
+umap_integrated_disease
+ggsave("umap_integrated_disease.png", umap_integrated_disease, path= "Plots/Teff_integration")
 
 
 # UMAP of cells in each cluster by sample
 DimPlot(pbmc.integrated,
         label = TRUE,
-        split.by = "")  + NoLegend()
+        split.by = "diseasegroup")  + NoLegend()
 
-metrics <-  c("nCount_RNA", "nFeature_RNA", "percent.mt")
+metrics <-  c("nCount_RNA", "nFeature_RNA", "percent_mt")
 
 FeaturePlot(pbmc.integrated,
             reduction = "umap",
@@ -124,80 +133,164 @@ FeaturePlot(pbmc.integrated,
 library(clustree)
 # integrated_snn_res.0.1 to 0.7 correspond to the different clustering resolutions
 
-clustree(pbmc.integrated, prefix = "integrated_snn_res.")
+clustering_tree_res <- clustree(pbmc.integrated, prefix = "integrated_snn_res.")
+clustering_tree_res
+ggsave("clustree_res.png", clustering_tree_res, path= "Plots/Teff_integration")
 
 # set idents to the best resolution
-Idents(pbmc.integrated) <- "RNA_snn_res.0.3"
+Idents(pbmc.integrated) <- "integrated_snn_res.0.2"
 
+umap_res_0.2 <- DimPlot(pbmc.integrated, group.by = "integrated_snn_res.0.2", label = TRUE, reduction = "umap")
+umap_res_0.2
+ggsave("umap_res_0.2.png", umap_res_0.2, path= "Plots/Teff_integration")
 
 ####################################################################################
 # Cell Type assignment
 
 #feature plots
 #Inspect cluster markers
-FeaturePlot(AS_NA,
+Feature_TH1 <- FeaturePlot(pbmc.integrated,
             reduction = "umap",
             features = c("IFNG", "XCL1", "IL2"),
             order = TRUE,
             min.cutoff = 'q10',
             label = TRUE) #cluster 3 = TH1 and chemokines
+Feature_TH1
+ggsave("Feature_TH1.png", Feature_TH1, path= "Plots/Teff_integration")
 
-FeaturePlot(AS_NA,
+Feature_TH2 <- FeaturePlot(pbmc.integrated,
             reduction = "umap",
             features = c("IL5", "IL13"),
             order = TRUE,
             min.cutoff = 'q10',
             label = TRUE) # cluster 4 = type 2 cytokine genes TH2 cells
+Feature_TH2
+ggsave("Feature_TH2.png", Feature_TH2, path= "Plots/Teff_integration")
 
-FeaturePlot(AS_NA,
+Feature_TH17 <- FeaturePlot(pbmc.integrated,
             reduction = "umap",
             features = c("IL17F", "IL22", "IL17A"),
             order = TRUE,
             min.cutoff = 'q10',
-            label = TRUE) #cluster 0 and cluster 2 = TH17
+            label = TRUE) #cluster 6 = TH17
+Feature_TH17
+ggsave("Feature_TH17.png", Feature_TH17, path= "Plots/Teff_integration")
 
-FeaturePlot(AS_NA,
+Feature_TH_IFNR <- FeaturePlot(pbmc.integrated,
             reduction = "umap",
             features = c("IFI6", "MX1", "ISG20", "OAS1", "IFIT1", "IFI44L"),
             order = TRUE,
             min.cutoff = 'q10',
-            label = TRUE) #TH-IFNR subset
+            label = TRUE) #TH-IFNR subset cluster 5
+Feature_TH_IFNR
+ggsave("Feature_TH_IFNR.png", Feature_TH_IFNR, path= "Plots/Teff_integration")
 
-FeaturePlot(AS_NA,
+
+Feature_memory <- FeaturePlot(pbmc.integrated,
             reduction = "umap",
             features = c("IL7R", "S100A4"),
             order = TRUE,
             min.cutoff = 'q10',
             label = TRUE) #CD4 memory cells
-
+Feature_memory
+ggsave("Feature_memory.png", Feature_memory, path= "Plots/Teff_integration")
 
 # Identify conserved cell type markers to identify the cell types corresponding to the remaining clusters
 
 #Identify conserved cell type markers
 DefaultAssay(pbmc.integrated) <- "RNA"
 
-cluster0_conserved_markers <- FindConservedMarkers(pbmc.integrated,
+seurat_joinlayer <- JoinLayers(pbmc.integrated)
+
+cluster6_conserved_markers <- FindConservedMarkers(seurat_joinlayer,
+                                                   ident.1 = 6,
+                                                   grouping.var = "diseasegroup",
+                                                   only.pos = TRUE, min.pct = 0.25,  min.diff.pct = 0.25,
+                                                   logfc.threshold = 0.25)
+
+cluster5_conserved_markers <- FindConservedMarkers(seurat_joinlayer,
+                                                   ident.1 = 5,
+                                                   grouping.var = "diseasegroup",
+                                                   only.pos = TRUE, min.pct = 0.25,  min.diff.pct = 0.25,
+                                                   logfc.threshold = 0.25)
+
+cluster4_conserved_markers <- FindConservedMarkers(seurat_joinlayer,
+                                                   ident.1 = 4,
+                                                   grouping.var = "diseasegroup",
+                                                   only.pos = TRUE, min.pct = 0.25,  min.diff.pct = 0.25,
+                                                   logfc.threshold = 0.25)
+
+cluster3_conserved_markers <- FindConservedMarkers(seurat_joinlayer,
+                                                   ident.1 = 3,
+                                                   grouping.var = "diseasegroup",
+                                                   only.pos = TRUE, min.pct = 0.25,  min.diff.pct = 0.25,
+                                                   logfc.threshold = 0.25)
+
+cluster2_conserved_markers <- FindConservedMarkers(seurat_joinlayer,
+                                                   ident.1 = 2,
+                                                   grouping.var = "diseasegroup",
+                                                   only.pos = TRUE, min.pct = 0.25,  min.diff.pct = 0.25,
+                                                   logfc.threshold = 0.25)
+
+cluster1_conserved_markers <- FindConservedMarkers(seurat_joinlayer,
+                                                   ident.1 = 1,
+                                                   grouping.var = "diseasegroup",
+                                                   only.pos = TRUE, min.pct = 0.25,  min.diff.pct = 0.25,
+                                                   logfc.threshold = 0.25)
+
+cluster0_conserved_markers <- FindConservedMarkers(seurat_joinlayer,
                                                    ident.1 = 0,
                                                    grouping.var = "diseasegroup",
                                                    only.pos = TRUE, min.pct = 0.25,  min.diff.pct = 0.25,
                                                    logfc.threshold = 0.25)
 
 
+
+#Load the table with gene descriptions to help you identify to what cell types the genes in the cluster can correspond to
+annotations <- read.csv("/home/projects/22102_single_cell/day3/annotation.csv")
+
+# Combine markers with gene descriptions
+cluster6_ann_markers <- cluster6_conserved_markers %>%
+  rownames_to_column(var="gene") %>%
+  left_join(y = unique(annotations[, c("gene_name", "description")]),
+            by = c("gene" = "gene_name"))
+
+cluster5_ann_markers <- cluster5_conserved_markers %>%
+  rownames_to_column(var="gene") %>%
+  left_join(y = unique(annotations[, c("gene_name", "description")]),
+            by = c("gene" = "gene_name"))
+
+cluster4_ann_markers <- cluster4_conserved_markers %>%
+  rownames_to_column(var="gene") %>%
+  left_join(y = unique(annotations[, c("gene_name", "description")]),
+            by = c("gene" = "gene_name"))
+
+
+cluster3_ann_markers <- cluster3_conserved_markers %>%
+  rownames_to_column(var="gene") %>%
+  left_join(y = unique(annotations[, c("gene_name", "description")]),
+            by = c("gene" = "gene_name"))
+
+cluster2_ann_markers <- cluster2_conserved_markers %>%
+  rownames_to_column(var="gene") %>%
+  left_join(y = unique(annotations[, c("gene_name", "description")]),
+            by = c("gene" = "gene_name"))
+
+
+
+
 # Rename all identities
+
+#Cluster 0, 1 and 2 are biologically uncharacterized activated T-cells
 pbmc.integrated <- RenameIdents(object = pbmc.integrated,
-                                "0" = "T-cells",
-                                "1" = "T-cells",
-                                "2" = "T-cells",
-                                "3" = "T-cells",
-                                "4" = "NK cells",
-                                "5" = "Monocytes",
-                                "6" = "T-cells",
-                                "7" = "Monocytes",
-                                "8" = "NK cells",
-                                "9" = "Monocytes",
-                                "10" = "B-cells",
-                                "11" = "Monocytes",
-                                "12" = "Platelet")
+                                "0" = "TH-ACT1",
+                                "1" = "TH-ACT2",
+                                "2" = "TH-ACT3",
+                                "3" = "TH-1",
+                                "4" = "TH-2",
+                                "5" = "TH-IFNR",
+                                "6" = "TH-17"
+                                )
 
 # Create a new column in metadata with cell type annotations from idents
 pbmc.integrated@meta.data$Cell_ann <- Idents(pbmc.integrated)
@@ -205,20 +298,23 @@ pbmc.integrated@meta.data$Cell_ann <- Idents(pbmc.integrated)
 # Now, you can view the updated metadata
 View(pbmc.integrated@meta.data)
 
+saveRDS(pbmc.integrated, "Data/Teff_annotation.rds")
 
 # visualize data
 clusters <- DimPlot(pbmc.integrated, reduction = 'umap', label = TRUE)
-xx <- DimPlot(pbmc.integrated, reduction = 'umap', group.by = '')
+diseasegroup <- DimPlot(pbmc.integrated, reduction = 'umap', group.by = 'diseasegroup')
 celltype <- DimPlot(pbmc.integrated, reduction = 'umap', group.by = 'Cell_ann')
+donor <- DimPlot(pbmc.integrated, reduction = 'umap', group.by = 'donor')
 
-xx|clusters
-xx|celltype
+diseasegroup|
+diseasegroup|celltype
+donor
 
+clusters
 
+ggsave("umap_cell_annotation.png", clusters, path= "Plots/Teff_integration")
 
-
-
-
+ggsave("umap_integrated_donor.png", donor, path= "Plots/Teff_integration")
 
 
 
