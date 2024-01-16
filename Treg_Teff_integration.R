@@ -21,14 +21,18 @@ Teff <- readRDS("/home/projects/Group1/Teff_annotation.rds")
 
 Treg <- readRDS("/home/projects/Group1/treg_annotated.rds")
 
+#Set default Assay, since this is the data we want to work with
+DefaultAssay(Teff) <- "integrated"
+DefaultAssay(Treg) <- "integrated"
+
 obj.list <- list(Teffector = Teff,
                  Tregulatory = Treg)
 
-
-for(i in 1:length(obj.list)){
-  obj.list[[i]] <- NormalizeData(object = obj.list[[i]])
-  obj.list[[i]]<- FindVariableFeatures(object = obj.list[[i]])
-}
+#This code was related to batch correction, so don't think we need this, since it is already done
+#for(i in 1:length(obj.list)){
+#  obj.list[[i]] <- NormalizeData(object = obj.list[[i]])
+#  obj.list[[i]]<- FindVariableFeatures(object = obj.list[[i]])
+#}
 
 
 #Speed up integration, by running as parallel session
@@ -72,32 +76,37 @@ pbmc.integrated <- RunUMAP(pbmc.integrated, dims = 1:30)
 
 DimPlot(pbmc.integrated, reduction = "umap")
 
-
-
 integrated_celltype <- DimPlot(pbmc.integrated, group.by = "celltype", label = TRUE)
 integrated_celltype
-ggsave("integrated_celltype.png", integrated_celltype, path= "Plots/Teff_Treg_integration")
+ggsave("integrated_celltype.png", integrated_celltype, path= "Plots/Teff_Treg_integration_ann")
 
-integrated_cellsubtype <- DimPlot(pbmc.integrated, group.by = "Cell_ann", label = TRUE)
+integrated_cellsubtype <- DimPlot(pbmc.integrated_joinlayer, group.by = "Cell_ann", label = TRUE)
 integrated_cellsubtype
-ggsave("integrated_celltype.png", integrated_celltype, path= "Plots/Teff_Treg_integration")
+ggsave("integrated_cellsubtype.png", integrated_cellsubtype, path= "Plots/Teff_Treg_integration")
 
 
 saveRDS(pbmc.integrated, "/home/projects/Group1/Teff_Treg_integration_cluster_annotated.rds")
 
 
 #######################################################################################
+#make two cellchat objects one for each condition (NA vs AL)
+#Then merge the cellchat objects and follow the vignette for combined CCC
+
 library(CellChat)
 library(patchwork)
 library(future)
 options(stringsAsFactors = FALSE)
 
-NA_integrated <- subset(pbmc.integrated, subset = celltype == "NA")
+#Trying to avoid error
+pbmc.integrated_joinlayer <- JoinLayers(pbmc.integrated)
 
-AL_integrated <- subset(pbmc.integrated, subset = celltype == "AL")
+NA_integrated <- subset(pbmc.integrated_joinlayer, subset = diseasegroup == "AS_NA")
 
-#make two cellchat objects one for each condition (NA vs AL)
-#Then merge the cellchat objects and follow the vignette for combined CCC
+AL_integrated <- subset(pbmc.integrated_joinlayer, subset = diseasegroup == "AS_AL")
+
+#create Cell chat object will not accept integrated assay
+DefaultAssay(NA_integrated) <- "RNA"
+DefaultAssay(AL_integrated) <- "RNA"
 
 #Create a CellChat object
 cellchat_NA <- createCellChat(object = NA_integrated,
