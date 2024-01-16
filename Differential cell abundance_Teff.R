@@ -77,7 +77,7 @@ volcanoplot <- ggplot(DCAT_data, aes(x = log_fold_change, y = neg_log10_p_value,
   geom_text_repel(aes(label = cell_type), box.padding = 0.5, point.padding = 0.1, size = 2) +
   scale_color_manual(values = c("black", "red"), guide = FALSE) +
   labs(
-    title = "Volcano Plot",
+    title = "Allergy vs. Non-allergy",
     x = "Log-fold Change",
     y = "-log10(p-value)"
   )
@@ -99,19 +99,27 @@ df <- data.frame(DiseaseGroup = rep(c("Asthm_allergic", "Asthm_non-allergic"), e
                  Percentage = as.vector(t(percentages)))
 
 # Create a stacked barplot using ggplot and save
+cellTypesLeft <- c("TH-ACT3", "TH-ACT1", "TH-17")
+cellTypesRight <- c("TH-IFNR", "TH-ACT2", "TH-2", "TH-1")
+
 stacked_bycondition <- ggplot(df, aes(x = DiseaseGroup, y = Percentage, fill = CellType)) +
   geom_bar(stat = "identity") +
-  labs(title = "Stacked Barplot of Cell Types by Disease Group (Percentage)",
-       x = "Disease Groups",
-       y = "Percentage") +
+  labs(y = "Percentage",
+       x = NULL) +
   theme_minimal() +
-  scale_fill_manual(values = c("blue", "green", "red","#76EEC6","#CD661D","#FF6EB4","#FFA500")) +
+  scale_fill_manual(values = c("#28F4B0", "#E161CC", "#48B2F5","#EE6363","#E3A858","#15CD29", "#AB82FF")) +
   geom_text(aes(label = paste0(round(Percentage), "%")),
-           position = position_stack(vjust = 0.5), color = "white") +
-  theme(legend.position = "right", legend.title = element_blank())
+            position = position_stack(vjust = 0.5),
+            color = "black",
+            size = 4,
+            hjust = ifelse(df$CellType %in% cellTypesRight, 1.5, -0.5)) +  # Use the vectors for conditions
+  theme(legend.position = "right",
+        legend.title = element_text( size = 12),
+        legend.text = element_text(size = 10),
+        axis.text.x = element_text(size = 12))
 
 stacked_bycondition
-ggsave("stacked_bycondition.png", stacked_bycondition, path= "Plots/DCAT/Teff")
+ggsave("stacked_bycondition.png", stacked_bycondition, path= "Plots/DCAT/Teff",width = 10, height = 7.5, units = "in", dpi = 300)
 
 # Create a stacked barplot with each bar represeting a celltype
 # Calculate column-wise percentages
@@ -125,14 +133,16 @@ df02 <- data.frame(CellType = rep(c("TH-ACT1", "TH-ACT2", "TH-ACT3", "TH-1", "TH
 # Create a stacked barplot using ggplot and save
 stacked_bycelltype <- ggplot(df02, aes(x = CellType, y = Percentage, fill = DiseaseGroup)) +
   geom_bar(stat = "identity") +
-  labs(title = "Stacked Barplot of Cell Types by Condition (Percentage)",
-       x = "Cell Types",
+  labs(x = NULL,
        y = "Percentage") +
   theme_minimal() +
-  scale_fill_manual(values = c("blue", "green")) +
+  scale_fill_manual(values = c("dodgerblue3", "#CD6889")) +
   geom_text(aes(label = paste0(round(Percentage), "%")),
-            position = position_stack(vjust = 0.5), color = "white") +
-  theme(legend.position = "top")
+            position = position_stack(vjust = 0.5), color = "black") +
+  theme(legend.position = "top",
+        legend.title = element_text( size = 12),
+        legend.text = element_text(size = 10),
+        axis.text.x = element_text(size = 10))
 
 stacked_bycelltype
-ggsave("stacked_bycelltype.png", stacked_bycelltype, path= "Plots/DCAT/Teff")
+ggsave("stacked_bycelltype.png", stacked_bycelltype, path= "Plots/DCAT/Teff",width = 10, height = 7.5, units = "in", dpi = 300)
