@@ -78,7 +78,7 @@ DimPlot(pbmc.integrated, reduction = "umap")
 
 integrated_celltype <- DimPlot(pbmc.integrated, group.by = "celltype", label = TRUE)
 integrated_celltype
-ggsave("integrated_celltype.png", integrated_celltype, path= "Plots/Teff_Treg_integration_ann")
+ggsave("integrated_celltype.png", integrated_celltype, path= "Plots/Teff_Treg_integration")
 
 integrated_cellsubtype <- DimPlot(pbmc.integrated_joinlayer, group.by = "Cell_ann", label = TRUE)
 integrated_cellsubtype
@@ -117,13 +117,126 @@ cellchat_AL <- createCellChat(object = AL_integrated,
                               meta = AL_integrated@meta.data,
                               group.by = "Cell_ann")
 
-
-object.list <- list(AS_NA = cellchat_NA, AS_AL = cellchat_AL)
-cellchat <- mergeCellChat(object.list, add.names = names(object.list))
-
 #Set interaction-ligand database
 CellChatDB <- CellChatDB.human
 
+cellchat_AL@DB <- CellChatDB
+
+cellchat_NA@DB <- CellChatDB
+
+##########################################################################
+#ALLERGIC
+
+# subset the expression data of signaling genes for saving computation cost
+cellchat_AL <- subsetData(cellchat_AL) # This step is necessary even if using the whole database
+plan("multisession", workers = 4) # do parallel
+
+cellchat_AL <- identifyOverExpressedGenes(cellchat_AL)
+cellchat_AL <- identifyOverExpressedInteractions(cellchat_AL)
+
+#Part II: Inference of cell-cell communication network
+cellchat_AL <- computeCommunProb(cellchat_AL)
+# Filter out the cell-cell communication if there are only few number of cells in certain cell groups
+cellchat_AL <- filterCommunication(cellchat_AL, min.cells = 10)
+
+
+#Extract the inferred cellular communication network as a data frame
+df.net_AL <- subsetCommunication(cellchat_AL)
+df.net_AL <- subsetCommunication(cellchat_AL) #returns a data frame consisting of all the inferred cell-cell communications at the level of ligands/receptors. Set slot.name = "netP" to access the the inferred communications at the level of signaling pathways
+
+
+#df.net <- subsetCommunication(cellchat, signaling = c("TNF", "TGFb")) #gives the inferred cell-cell communications mediated by signaling WNT and TGFb.
+
+#Infer the cell-cell communication at a signaling pathway level
+
+cellchat_AL <- computeCommunProbPathway(cellchat_AL)
+
+#Calculate the aggregated cell-cell communication network
+cellchat_AL <- aggregateNet(cellchat_AL)
+groupSize_AL <- as.numeric(table(cellchat_AL@idents))
+par(mfrow = c(1,2), xpd=TRUE)
+netVisual_circle(cellchat_AL@net$count, vertex.weight = groupSize_AL, weight.scale = T, label.edge= F, title.name = "Number of interactions Allergic")
+netVisual_circle(cellchat_AL@net$weight, vertex.weight = groupSize_AL, weight.scale = T, label.edge= F, title.name = "Interaction weights/strength Allergic")
+
+#########################################################
+
+pathways_AL <- cellchat_AL@netP$pathways
+
+#Part III: Visualization of cell-cell communication network
+
+# Circle plot
+par(mfrow=c(1,2))
+netVisual_aggregate(cellchat_AL, signaling = pathways_AL[1], layout = "circle")
+netVisual_aggregate(cellchat_AL, signaling = pathways_AL[2], layout = "circle")
+netVisual_aggregate(cellchat_AL, signaling = pathways_AL[3], layout = "circle")
+netVisual_aggregate(cellchat_AL, signaling = pathways_AL[4], layout = "circle")
+netVisual_aggregate(cellchat_AL, signaling = pathways_AL[5], layout = "circle")
+netVisual_aggregate(cellchat_AL, signaling = pathways_AL[6], layout = "circle")
+
+netVisual_heatmap(cellchat_AL, signaling = pathways_AL[1], color.heatmap = "Reds")
+
+saveRDS(cellchat_AL, "/home/projects/Group1/CellChat_AL.rds")
+
+################################################################################
+#NON-ALLERGIC
+
+# subset the expression data of signaling genes for saving computation cost
+cellchat_NA <- subsetData(cellchat_NA) # This step is necessary even if using the whole database
+
+cellchat_NA <- identifyOverExpressedGenes(cellchat_NA)
+cellchat_NA <- identifyOverExpressedInteractions(cellchat_NA)
+
+#Part II: Inference of cell-cell communication network
+cellchat_NA <- computeCommunProb(cellchat_NA)
+# Filter out the cell-cell communication if there are only few number of cells in certain cell groups
+cellchat_NA <- filterCommunication(cellchat_NA, min.cells = 10)
+
+
+#Extract the inferred cellular communication network as a data frame
+df.net_NA <- subsetCommunication(cellchat_NA)
+df.net_NA <- subsetCommunication(cellchat_NA) #returns a data frame consisting of all the inferred cell-cell communications at the level of ligands/receptors. Set slot.name = "netP" to access the the inferred communications at the level of signaling pathways
+
+
+#df.net <- subsetCommunication(cellchat, signaling = c("TNF", "TGFb")) #gives the inferred cell-cell communications mediated by signaling WNT and TGFb.
+
+#Infer the cell-cell communication at a signaling pathway level
+
+cellchat_NA <- computeCommunProbPathway(cellchat_AL)
+
+#Calculate the aggregated cell-cell communication network
+cellchat_NA <- aggregateNet(cellchat_NA)
+groupSize_NA <- as.numeric(table(cellchat_NA@idents))
+par(mfrow = c(1,2), xpd=TRUE)
+netVisual_circle(cellchat_NA@net$count, vertex.weight = groupSize_NA, weight.scale = T, label.edge= F, title.name = "Number of interactions Non-allergic")
+netVisual_circle(cellchat_NA@net$weight, vertex.weight = groupSize_NA, weight.scale = T, label.edge= F, title.name = "Interaction weights/strength Non-allergic")
+
+#########################################################
+
+pathways_NA <- cellchat_NA@netP$pathways
+
+#Part III: Visualization of cell-cell communication network
+
+# Circle plot
+par(mfrow=c(1,2))
+netVisual_aggregate(cellchat_NA, signaling = pathways_NA[1], layout = "circle")
+netVisual_aggregate(cellchat_NA, signaling = pathways_NA[2], layout = "circle")
+netVisual_aggregate(cellchat_NA, signaling = pathways_NA[3], layout = "circle")
+netVisual_aggregate(cellchat_NA, signaling = pathways_NA[4], layout = "circle")
+netVisual_aggregate(cellchat_NA, signaling = pathways_NA[5], layout = "circle")
+netVisual_aggregate(cellchat_NA, signaling = pathways_NA[6], layout = "circle")
+
+par(mfrow=c(1,1))
+netVisual_heatmap(cellchat_NA, signaling = pathways_NA[1], color.heatmap = "Reds")
+
+saveRDS(cellchat_NA, "/home/projects/Group1/CellChat_NA.rds")
+
+####################################################################
+
+#THIS WAS CODE FOR THE COMPARISON BETWEEN ALLERGIC AND NON-ALLERGIC, DOES NOT RUN NOW
+
+#object.list <- list(AS_NA = cellchat_NA, AS_AL = cellchat_AL)
+#cellchat <- mergeCellChat(object.list, add.names = names(object.list))
+#cellchat@DB <- CellChatDB
 
 #Compare the total number of interactions and interaction strength
 
