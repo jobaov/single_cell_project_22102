@@ -29,7 +29,8 @@ data <- RunUMAP(data, dims = 1:30)
 
 DimPlot(data, group.by = "RNA_snn_res.0.1", label = TRUE, reduction = "umap")
 
-DimPlot(data, group.by = "RNA_snn_res.0.2", label = TRUE, reduction = "umap")
+Teff_nonintegrated_res0.2 <- DimPlot(data, group.by = "RNA_snn_res.0.2", label = TRUE, reduction = "umap")
+ggsave("Teff_nonintegrated_res0.2.png", Teff_nonintegrated_res0.2, path= "Plots/Teff_integration")
 
 DimPlot(data, group.by = "RNA_snn_res.0.3", label = TRUE, reduction = "umap")
 
@@ -44,9 +45,11 @@ DimPlot(data, group.by = "RNA_snn_res.0.7", label = TRUE, reduction = "umap")
 
 
 #Visualize Umap grouped by "batch effect"
-DimPlot(data, reduction = "umap", group.by = "donor")
+Teff_nonintegrated_donor <- DimPlot(data, reduction = "umap", group.by = "donor")
+ggsave("Teff_nonintegrated_donor.png", Teff_nonintegrated_donor, path= "Plots/Teff_integration")
 
-DimPlot(data, reduction = "umap", split.by = "donor")
+Teff_nonintegrated_donor_clus_res02 <- DimPlot(data, reduction = "umap", split.by = "donor", group.by = "RNA_snn_res.0.2")
+ggsave("Teff_nonintegrated_donor_clus_res02.png", Teff_nonintegrated_donor_clus_res02, path= "Plots/Teff_integration")
 
 #Split the dataset into a list of Seurat objects.
 #Normalize and identify variable features for each group independently.
@@ -79,7 +82,7 @@ DefaultAssay(pbmc.integrated) <- "integrated"
 saveRDS(pbmc.integrated, "Data/Teff_integration.rds")
 
 #read integrated data
-pbmc.integrated <- readRDS("Data/Teff_integration.rds")
+pbmc.integrated <- readRDS("/home/projects/Group1/Teff_integration.rds")
 
 plan("sequential")
 
@@ -108,7 +111,7 @@ umap_integrated_donor <- DimPlot(pbmc.integrated, group.by = "donor", label = TR
 umap_integrated_donor
 ggsave("umap_integrated_donor.png", umap_integrated_donor, path= "Plots/Teff_integration")
 
-umap_integrated_disease <- DimPlot(pbmc.integrated, split.by = "diseasegroup", label = TRUE)
+umap_integrated_disease <- DimPlot(pbmc.integrated, split.by = "diseasegroup", label = TRUE, group.by = "integrated_snn_res.0.2")
 umap_integrated_disease
 ggsave("umap_integrated_disease.png", umap_integrated_disease, path= "Plots/Teff_integration")
 
