@@ -24,7 +24,8 @@ teff_asthm <- readRDS("/net/pupil1/home/projects/Group1/Teff_annotation.rds")
 
 dim_diseasegroup <- DimPlot(teff_asthm, split.by = "diseasegroup")
 dim_diseasegroup
-ggsave("dim_diseasegroup.png", dim_diseasegroup, path= "Plots/DCAT/Teff")
+
+ggsave("dim_diseasegroup.png", dim_diseasegroup, path= "Plots/DCAT/Teff", width = 10, height = 7.5, units = "in", dpi = 300)
 
 #######################################################################################
 # Differential Cell Type abundance using DCAT tool

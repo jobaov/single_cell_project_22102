@@ -89,41 +89,6 @@ for (Cell_ann in names(cts.split.modified)) {
 padj_cutoff <- 0.05
 ###########################################################################################################################
 
-sig_results_list <- lapply(results_list, function(res_tbl) {
-  # Turn the DESeq2 results object into a tibble for use with tidyverse functions
-  res_tbl <- res_tbl %>%
-    rownames_to_column(var = "gene") %>%
-    as_tibble() %>%
-    arrange(padj)
-
-  # Subset the significant results
-  sig_res <- dplyr::filter(res_tbl, padj < padj_cutoff) %>%
-    dplyr::arrange(padj)
-
-  # Order results by padj values and select top 20
-  top20_sig_genes <- sig_res %>%
-    dplyr::arrange(padj) %>%
-    dplyr::pull(gene) %>%
-    head(n = 20)
-
-  # Order results by log fold change and select top 20
-  top20_sig_genes_change <- sig_res %>%
-    dplyr::arrange(log2FoldChange) %>%
-    dplyr::pull(gene) %>%
-    head(n = 20)
-
-  # Print top 20 genes for each cell type
-  print("Top 20 significant genes ordered by padj:")
-  print(top20_sig_genes)
-
-  print("Top 20 significant genes ordered by log fold change:")
-  print(top20_sig_genes_change)
-
-  # Return the significant results
-  return(sig_res)
-})
-
-
 # Define function
 process_data_frame <- function(res_tbl, padj_cutoff = 0.05) {
   res_tbl <- res_tbl %>%
@@ -160,9 +125,9 @@ saveRDS(processed_data_teff, "Data/DGE/Teff/DGE_processed_data_teff.rds")
 for (i in seq_along(processed_data_teff)) {
   cat("Results for object", i, ":\n")
   print("Top 20 significant genes ordered by padj:")
-  print(processed_data[[i]]$top20_genes_by_padj)
+  print(processed_data_teff[[i]]$top20_genes_by_padj)
 
   print("Top 20 significant genes ordered by log fold change:")
-  print(processed_data[[i]]$top20_genes_by_change)
+  print(processed_data_teff[[i]]$top20_genes_by_change)
   cat("\n")
 }

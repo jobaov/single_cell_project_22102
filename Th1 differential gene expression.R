@@ -147,11 +147,12 @@ padj_cutoff <- 0.05
   print(top20_sig_genes_change)
 
 
-
-ggplot(res_tbl, aes(x = log2FoldChange, y = -log10(padj))) +
+## Plot has to be worked on!!
+plot <- ggplot(res_tbl, aes(x = log2FoldChange, y = -log10(padj))) +
     geom_point(aes(color = ifelse(abs(log2FoldChange) > 1 & padj < 0.05, "red", "black")), size = 2) +
     scale_color_manual(values = c("black", "red")) +
     theme_minimal() +
     labs(title = "Volcano Plot for Differential Gene Expression",
          x = "log2 Fold Change",
          y = "-log10(padj)")
+ggsave("volcanoplot_th1.png", plot, path= "Plots/DGE/Teff")

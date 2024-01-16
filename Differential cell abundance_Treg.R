@@ -17,7 +17,7 @@ library(tibble)
 library(tidyr)
 
 # Load data
-treg_asthm <- readRDS("Data/treg_asthm_annotated.rds")
+treg_asthm <- readRDS("/net/pupil1/home/projects/Group1/treg_annotated.rds")
 
 #######################################################################################
 # Visual inspection of differential abundances and save plot
