@@ -17,7 +17,7 @@ library(tibble)
 library(tidyr)
 
 # Load data
-teff_asthm <- readRDS("Data/teff_asthm_annotated.rds")
+teff_asthm <- readRDS("/net/pupil1/home/projects/Group1/Teff_annotation.rds")
 
 #######################################################################################
 # Visual inspection of differential abundances and save plot
@@ -47,7 +47,7 @@ condition_vector <- rep(c("Asthm_allergic", "Asthm_non_allergic"), each = 6)
 teff_design <- data.frame(condition = condition_vector)
 
 # Perform differential abundance analysis
-results_DA <- dcats_GLM(count_mat, treg_design, knn_mat)
+results_DA <- dcats_GLM(count_mat, teff_design, knn_mat)
 
 ################################################################################
 
@@ -84,7 +84,7 @@ volcanoplot
 ggsave("volcanoplot.png", volcanoplot, path= "Plots/DCAT/Teff")
 
 # Create stacked barplots and save
-count_mat_diseasegroup <- table(treg_asthm$diseasegroup, treg_asthm$Cell_ann)
+count_mat_diseasegroup <- table(teff_asthm$diseasegroup, teff_asthm$Cell_ann)
 count_mat_diseasegroup
 saveRDS(count_mat_diseasegroup, "Data/DCAT/Teff/DCAT_stackedplot_data.rds")
 
@@ -93,8 +93,8 @@ saveRDS(count_mat_diseasegroup, "Data/DCAT/Teff/DCAT_stackedplot_data.rds")
 percentages <- prop.table(count_mat_diseasegroup, margin = 1) * 100
 
 # Convert data to a data frame for ggplot
-df <- data.frame(DiseaseGroup = rep(c("Asthm_allergic", "Asthm_non-allergic"), each = x), # number has to be adjusted
-                 CellType = rep(c("z", "y", "x"), times = 2), ## has to be adjusted!!
+df <- data.frame(DiseaseGroup = rep(c("Asthm_allergic", "Asthm_non-allergic"), each = 7), # number has to be adjusted
+                 CellType = rep(c("TH-ACT1", "TH-ACT2", "TH-ACT3", "TH-1", "TH-2", "TH-IFNR", "TH-17"), times = 2), ## has to be adjusted!!
                  Percentage = as.vector(t(percentages)))
 
 # Create a stacked barplot using ggplot and save
@@ -104,9 +104,9 @@ stacked_bycondition <- ggplot(df, aes(x = DiseaseGroup, y = Percentage, fill = C
        x = "Disease Groups",
        y = "Percentage") +
   theme_minimal() +
-  scale_fill_manual(values = c("blue", "green", "red")) + ## will need more colours!
+  scale_fill_manual(values = c("blue", "green", "red","#76EEC6","#CD661D","#FF6EB4","#FFA500")) +
   geom_text(aes(label = paste0(round(Percentage), "%")),
-            position = position_stack(vjust = 0.5), color = "white") +
+           position = position_stack(vjust = 0.5), color = "white") +
   theme(legend.position = "right", legend.title = element_blank())
 
 stacked_bycondition
@@ -117,8 +117,8 @@ ggsave("stacked_bycondition.png", stacked_bycondition, path= "Plots/DCAT/Teff")
 percentages02 <- prop.table(count_mat_diseasegroup, margin = 2) * 100
 
 # Convert data to a data frame for ggplot
-df02 <- data.frame(CellType = rep(c("y", "y", "x"), each = 2), ## adjust!
-                   DiseaseGroup = rep(c("Asthm_allergic", "Asthm_non-allergic"), times = x), # adjust number
+df02 <- data.frame(CellType = rep(c("TH-ACT1", "TH-ACT2", "TH-ACT3", "TH-1", "TH-2", "TH-IFNR", "TH-17"), each = 2),
+                   DiseaseGroup = rep(c("Asthm_allergic", "Asthm_non-allergic"), times = 7),
                    Percentage = as.vector(percentages02))
 
 # Create a stacked barplot using ggplot and save
