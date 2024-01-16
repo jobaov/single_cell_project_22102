@@ -39,6 +39,16 @@ meta_teff <- meta_teff[ , -1]
 meta_treg <- meta_treg[ , c(1:2, 6:10)]
 meta_teff <- meta_teff[ , c(1:2, 6:10)]
 
+# Create nCount and nFeature metadata
+nCount_treg <- colSums(counts_treg)
+nCount_teff <- colSums(counts_teff)
+
+nFeatures_treg <- colSums(counts_treg != 0)
+nFeatures_teff <- colSums(counts_teff != 0)
+
+#meta_treg <- cbind(meta_treg, nCount_treg, nFeatures_treg)
+#meta_teff <- cbind(meta_teff, nCount_teff, nFeatures_teff)
+
 # Create Seurat Object
 treg_data <- CreateSeuratObject(counts = counts_treg,
                                 meta.data = meta_treg)

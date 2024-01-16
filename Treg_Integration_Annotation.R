@@ -1,4 +1,4 @@
-#read libraries
+# Read libraries
 
 library(Seurat)
 library(data.table)
@@ -17,13 +17,6 @@ library(metap)
 library(tibble)
 library(purrr)
 library(clustree)
-
-treg_singlet_indices <- which(treg_dbl.calls == "singlet")
-teff_singlet_indices <- which(teff_dbl.calls == "singlet")
-
-# Filter out doublets from the original Seurat object
-treg_asthm <- treg_asthm[, treg_singlet_indices]
-teff_asthm <- teff_asthm[, teff_singlet_indices]
 
 # Load Seurat object
 data <- readRDS("Data/treg_asthm_filtered.rds")
@@ -52,15 +45,15 @@ DimPlot(data, group.by = "RNA_snn_res.0.7", label = TRUE, reduction = "umap")
 # Sample integration
 
 # Visualize Umap grouped by "batch effect"
-DimPlot(data, reduction = "umap", group.by = "diseasegroup")
+DimPlot(data, reduction = "umap", group.by = "donor")
 
-DimPlot(data, reduction = "umap", split.by = "diseasegroup")
+DimPlot(data, reduction = "umap", split.by = "donor")
 
 # Split the dataset into a list of Seurat objects (xx, xx).
 # Normalize and identify variable features for each group independently.
 
 # Add group to split by
-obj.list <- SplitObject(data, split.by = "diseasegroup")
+obj.list <- SplitObject(data, split.by = "donor")
 
 for(i in 1:length(obj.list)){
   obj.list[[i]] <- NormalizeData(object = obj.list[[i]])
@@ -81,6 +74,8 @@ data.integrated <- IntegrateData(anchorset = anchors)
 
 DefaultAssay(data.integrated) <- "integrated"
 plan("sequential")
+
+saveRDS(data.integrated, "Data/treg_integrated.rds")
 
 # Run the standard workflow for visualization and clustering (scaling, pca, find neighbors
 # and clusters with different resolutions)
@@ -108,13 +103,13 @@ data.integrated <- RunUMAP(data.integrated,
 
 DimPlot(data.integrated, reduction = "umap")
 
-DimPlot(data.integrated, group.by = "diseasegroup", label = TRUE)
-DimPlot(data.integrated, split.by = "diseasegroup", label = TRUE)
+DimPlot(data.integrated, group.by = "donor", label = TRUE)
+DimPlot(data.integrated, split.by = "donor", label = TRUE)
 
 # UMAP of cells in each cluster by sample
 DimPlot(data.integrated,
         label = TRUE,
-        split.by = "diseasegroup")  + NoLegend()
+        split.by = "donor")  + NoLegend()
 
 metrics <-  c("nCount_RNA", "nFeature_RNA", "percent.mt")
 
@@ -134,9 +129,9 @@ library(clustree)
 clustree(data.integrated, prefix = "integrated_snn_res.")
 
 # set idents to the best resolution
-Idents(data.integrated) <- "integrated_snn_res.0.2"
+Idents(data.integrated) <- "integrated_snn_res.0.3"
 
-DimPlot(data.integrated, group.by = "integrated_snn_res.0.2", label = TRUE)
+DimPlot(data.integrated, group.by = "integrated_snn_res.0.3", label = TRUE)
 
 ####################################################################################
 # Cell Type assignment
@@ -196,7 +191,7 @@ data.integrated <- JoinLayers(data.integrated)
 
 cluster0_conserved_markers <- FindConservedMarkers(data.integrated,
                                                    ident.1 = 0,
-                                                   grouping.var = "diseasegroup",
+                                                   grouping.var = "donor",
                                                    only.pos = TRUE,
                                                    min.pct = 0.25,
                                                    min.diff.pct = 0.25,
@@ -204,7 +199,7 @@ cluster0_conserved_markers <- FindConservedMarkers(data.integrated,
 
 cluster1_conserved_markers <- FindConservedMarkers(data.integrated,
                                                    ident.1 = 1,
-                                                   grouping.var = "diseasegroup",
+                                                   grouping.var = "donor",
                                                    only.pos = TRUE,
                                                    min.pct = 0.25,
                                                    min.diff.pct = 0.25,
@@ -212,7 +207,7 @@ cluster1_conserved_markers <- FindConservedMarkers(data.integrated,
 
 cluster2_conserved_markers <- FindConservedMarkers(data.integrated,
                                                    ident.1 = 2,
-                                                   grouping.var = "diseasegroup",
+                                                   grouping.var = "donor",
                                                    only.pos = TRUE,
                                                    min.pct = 0.25,
                                                    min.diff.pct = 0.25,
@@ -240,9 +235,9 @@ cluster2_ann_markers <- cluster2_conserved_markers %>%
 
 # Rename all identities
 data.integrated <- RenameIdents(object = data.integrated,
-                                "0" = "TregIFNR",
-                                "1" = "TregACT1",
-                                "2" = "TregACT2")
+                                "2" = "TregIFNR",
+                                "0" = "TregACT1",
+                                "1" = "TregACT2")
 
 # Create a new column in metadata with cell type annotations from idents
 data.integrated@meta.data$Cell_ann <- Idents(data.integrated)
@@ -252,14 +247,15 @@ View(data.integrated@meta.data)
 
 # Visualize data
 clusters <- DimPlot(data.integrated, reduction = 'umap', label = TRUE)
-xx <- DimPlot(data.integrated, reduction = 'umap', split.by = 'diseasegroup')
+xx <- DimPlot(data.integrated, reduction = 'umap', split.by = 'donor')
 celltype <- DimPlot(data.integrated, reduction = 'umap', group.by = 'Cell_ann')
 
 xx|clusters
 xx|celltype
 
-saveRDS(data.integrated, "Data/treg_asthm_annotated.rds")
+saveRDS(data.integrated, "Data/treg_annotated.rds")
 
-
-
+a <- table(data.integrated@meta.data$Cell_ann, data.integrated@meta.data$diseasegroup)
+a[,1]/sum(a[,1])
+a[,2]/sum(a[,2])
 

@@ -92,7 +92,8 @@ for (i in 1:2){
       ggtitle(title[j]) +
       theme(axis.text.x = element_blank(),
             axis.ticks.x = element_blank(),
-            legend.position = "none")
+            legend.position = "none",
+            plot.title = element_text(size = 5, face = "bold"))
   }
   plot_vln_list[[i]] <- plot_vln
 }
@@ -101,6 +102,9 @@ plot_vln_treg <- wrap_plots(plot_vln_list[[1]], # Remove line ribosomal
                             ncol = 5)
 plot_vln_teff <- wrap_plots(plot_vln_list[[2]], # Mito to 5
                             ncol = 5)
+
+ggsave("plot_vln_treg.png", plot_vln_treg, path= "Plots/QC")
+ggsave("plot_vln_teff.png", plot_vln_teff, path= "Plots/QC")
 
 ##### Plot the results (density plots).
 
@@ -118,7 +122,7 @@ for (i in 1:2){
     geom_density(alpha = 0.2) +
     scale_x_log10() +
     theme_classic() +
-    xlab("RNA molecules") +
+    xlab("Number of genes") +
     ylab("Cell density") +
     geom_vline(xintercept = 500) +
     scale_fill_discrete(name = "Disease group", labels = c("Asthmatic allergic",
@@ -148,7 +152,7 @@ for (i in 1:2){
     geom_density(alpha = 0.2) +
     scale_x_log10() +
     theme_classic() +
-    xlab("RNA molecules") +
+    xlab("Novelty score") +
     ylab("Cell density") +
     geom_vline(xintercept = 0.8) +
     scale_fill_discrete(name = "Disease group", labels = c("Asthmatic allergic",
@@ -163,7 +167,7 @@ for (i in 1:2){
     geom_density(alpha = 0.2) +
     scale_x_log10() +
     theme_classic() +
-    xlab("RNA molecules") +
+    xlab("Mitochondrial content") +
     ylab("Cell density") +
     geom_vline(xintercept = 5) +
     scale_fill_discrete(name = "Disease group", labels = c("Asthmatic allergic",
@@ -184,21 +188,24 @@ for (i in 1:2){
   # Visualize number of RNA molecules vs. number of genes.
   plot_scatter[[1]] <- FeatureScatter(data_asthm[[i]],
                                       feature1 = "nCount_RNA",
-                                      feature2 = "nFeature_RNA")
+                                      feature2 = "nFeature_RNA") +
+    xlab("Number of RNA molecules") +
+    ylab("Number of genes") +
+    theme(legend.position = "none")
 
   # Visualize number of RNA molecules vs. percent mitochondrial content.
   plot_scatter[[2]] <- FeatureScatter(data_asthm[[i]],
                                       feature1 = "nCount_RNA",
-                                      feature2 = "percent_mt")
+                                      feature2 = "percent_mt") +
+    xlab("Number of RNA molecules") +
+    ylab("Mitochondrial content")
+
   plot_scatter_list[[i]] <- plot_scatter
 }
 
-# SAVE RELEVANT FIGURES
-#ggsave("UMI_cell.png", UMI_cell, path= "../Plots/QC")
-#ggsave("genes_cell.png", genes_cell, path= "../Plots/QC")
-#ggsave("novelty.png", novelty, path= "../Plots/QC")
-#ggsave("mito.png", mito, path= "../Plots/QC")
-
+# Save figures
+ggsave("plot_scatter_treg.png", plot_scatter_list[[1]][[1]], path= "Plots/QC")
+ggsave("plot_scatter_teff.png", plot_scatter_list[[2]][[1]], path= "Plots/QC")
 
 # Filter the cells based on your QC metrics.
 treg_asthm <- subset(treg_asthm,
@@ -238,6 +245,59 @@ treg_asthm <- CreateSeuratObject(filtered_counts_treg,
 teff_asthm <- CreateSeuratObject(filtered_counts_teff,
                                  meta.data = teff_asthm@meta.data)
 
+# Standard workflow
+# Do a log-normalization following Seurat’s standard workflow.
+treg_asthm <- NormalizeData(treg_asthm,
+                            normalization.method = "LogNormalize",
+                            scale.factor = 10000)
+teff_asthm <- NormalizeData(teff_asthm,
+                            normalization.method = "LogNormalize",
+                            scale.factor = 10000)
+
+# Identifying highly variable features.
+treg_asthm <- FindVariableFeatures(treg_asthm,
+                                   selection.method = "vst",
+                                   nfeatures = 2000)
+teff_asthm <- FindVariableFeatures(teff_asthm,
+                                   selection.method = "vst",
+                                   nfeatures = 2000)
+# Plot variable features.
+VariableFeaturePlot(treg_asthm) +
+  scale_y_continuous(limits = c(0, 10))
+top10_treg <- head(VariableFeatures(treg_asthm), 10)
+
+# Plot variable features with labels
+plot1_treg <- VariableFeaturePlot(treg_asthm)
+plot2_treg <- LabelPoints(plot = plot1_treg, points = top10_treg, repel = TRUE)
+plot2_treg
+
+VariableFeaturePlot(teff_asthm) +
+  scale_y_continuous(limits = c(0, 10))
+top10_teff <- head(VariableFeatures(teff_asthm), 10)
+
+# Plot variable features with labels
+plot1_teff <- VariableFeaturePlot(teff_asthm)
+plot2_teff <- LabelPoints(plot = plot1_teff, points = top10_teff, repel = TRUE)
+plot2_teff
+
+ggsave("plot_varfeature_treg.png", plot2_treg, path= "Plots/QC")
+ggsave("plot_varfeature_teff.png", plot2_teff, path= "Plots/QC")
+
+# Scale the data.
+treg_asthm <- ScaleData(treg_asthm,
+                        features = VariableFeatures(object = treg_asthm))
+teff_asthm <- ScaleData(teff_asthm,
+                        features = VariableFeatures(object = teff_asthm))
+
+# Perform linear dimensionality reduction.
+treg_asthm <- RunPCA(treg_asthm,
+                     features = VariableFeatures(object = treg_asthm))
+teff_asthm <- RunPCA(teff_asthm,
+                     features = VariableFeatures(object = teff_asthm))
+
+treg_asthm <- RunUMAP(treg_asthm, dims = 1:30)
+teff_asthm <- RunUMAP(teff_asthm, dims = 1:30)
+
 # Convert your seurat object to a sce object.
 treg_sce <- as.SingleCellExperiment(treg_asthm)
 teff_sce <- as.SingleCellExperiment(teff_asthm)
@@ -264,6 +324,12 @@ teff_dbl.calls <- doubletThresholding(data.frame(score = teff_dbl.dens),
 summary(treg_dbl.calls)
 summary(teff_dbl.calls)
 
+plot_dscore_treg <- plotUMAP(treg_sce, colour_by="DoubletScore")
+plot_dscore_teff <- plotUMAP(teff_sce, colour_by="DoubletScore")
+
+ggsave("plot_dscore_treg.png", plot_dscore_treg, path= "Plots/QC")
+ggsave("plot_dscore_teff.png", plot_dscore_teff, path= "Plots/QC")
+
 # Remove doublets
 # Extract singlet cell indices
 treg_singlet_indices <- which(treg_dbl.calls == "singlet")
@@ -272,49 +338,6 @@ teff_singlet_indices <- which(teff_dbl.calls == "singlet")
 # Filter out doublets from the original Seurat object
 treg_asthm <- treg_asthm[, treg_singlet_indices]
 teff_asthm <- teff_asthm[, teff_singlet_indices]
-
-
-
-
-# Do a log-normalization following Seurat’s standard workflow.
-treg_asthm <- NormalizeData(treg_asthm,
-                            normalization.method = "LogNormalize",
-                            scale.factor = 10000)
-teff_asthm <- NormalizeData(teff_asthm,
-                            normalization.method = "LogNormalize",
-                            scale.factor = 10000)
-
-# Identifying highly variable features.
-treg_asthm <- FindVariableFeatures(treg_asthm,
-                                   selection.method = "vst",
-                                   nfeatures = 2000)
-teff_asthm <- FindVariableFeatures(teff_asthm,
-                                   selection.method = "vst",
-                                   nfeatures = 2000)
-
-# Plot variable features.
-VariableFeaturePlot(treg_asthm) +
-  scale_y_continuous(limits = c(0, 10))
-
-VariableFeaturePlot(teff_asthm) +
-  scale_y_continuous(limits = c(0, 10))
-
-# Scale the data.
-treg_asthm <- ScaleData(treg_asthm,
-                        features = VariableFeatures(object = treg_asthm))
-teff_asthm <- ScaleData(teff_asthm,
-                        features = VariableFeatures(object = teff_asthm))
-
-# Perform linear dimensionality reduction.
-treg_asthm <- RunPCA(treg_asthm,
-                     features = VariableFeatures(object = treg_asthm))
-teff_asthm <- RunPCA(teff_asthm,
-                     features = VariableFeatures(object = teff_asthm))
-
-# Elbow plot. The “elbow point” determines the dimensionality of the data.
-ElbowPlot(treg_asthm)
-ElbowPlot(teff_asthm)
-
 
 saveRDS(treg_asthm, "Data/treg_asthm_filtered.rds")
 saveRDS(teff_asthm, "Data/teff_asthm_filtered.rds")
