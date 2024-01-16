@@ -11,7 +11,7 @@ library(dplyr)
 library(ggplot2)
 library(ggrepel)
 library(tibble)
-treg_asthm <- readRDS("Data/treg_asthm_annotated.rds")
+treg_asthm <- readRDS("/net/pupil1/home/projects/Group1/treg_annotated.rds")
 #Preparing the single-cell dataset for pseudobulk analysis
 
 # Create ID column
@@ -77,25 +77,22 @@ dds <- DESeq(dds)
 
 # Generate results object
 res <- results(dds, name = "diseasegroup_Non.allergic_vs_Allergic")
-res_tbl <- as.data.frame(res) ## not sure why yet
+res_tbl <- as.data.frame(res)
 
 # Save the results for the current cell type
 results_list[[Cell_ann]] <- res_tbl
 }
 ##########################################################################################################################
 # Data interpretation
-min(results_list$TregIFNR[["padj"]])
+min(results_list$TregIFNR[["padj"]], na.rm = TRUE)
 min(results_list$TregACT1[["padj"]], na.rm = TRUE)
-min(results_list$TregACT2[["padj"]])
+min(results_list$TregACT2[["padj"]], na.rm = TRUE)
 
 # Set thresholds
-padj_cutoff <- 0.005
+padj_cutoff <- 0.05
 ###########################################################################################################################
-# NOT SURE IF THIS WORKS
-# But currently all padj are above 0.005, so hard to test
-# Using lapply to iterate over the list of data frames
-sig_results_list <- lapply(results_list, function(res_tbl) {
-  # Turn the DESeq2 results object into a tibble for use with tidyverse functions
+# Define function
+process_data_frame <- function(res_tbl, padj_cutoff = 0.05) {
   res_tbl <- res_tbl %>%
     rownames_to_column(var = "gene") %>%
     as_tibble() %>%
@@ -117,13 +114,22 @@ sig_results_list <- lapply(results_list, function(res_tbl) {
     dplyr::pull(gene) %>%
     head(n = 20)
 
-  # Print top 20 genes for each cell type
+  # Return the results
+  return(list(
+    top20_genes_by_padj = top20_sig_genes,
+    top20_genes_by_change = top20_sig_genes_change
+  ))
+}
+
+processed_data_treg <- lapply(results_list, process_data_frame)
+saveRDS(processed_data_treg, "Data/DGE/Treg/DGE_processed_data_treg.rds")
+
+for (i in seq_along(processed_data_treg)) {
+  cat("Results for object", i, ":\n")
   print("Top 20 significant genes ordered by padj:")
-  print(top20_sig_genes)
+  print(processed_data_treg[[i]]$top20_genes_by_padj)
 
   print("Top 20 significant genes ordered by log fold change:")
-  print(top20_sig_genes_change)
-
-  # Return the significant results
-  return(sig_res)
-})
+  print(processed_data_treg[[i]]$top20_genes_by_change)
+  cat("\n")
+}
