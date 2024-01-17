@@ -97,14 +97,18 @@ library(patchwork)
 library(future)
 options(stringsAsFactors = FALSE)
 
+pbmc.integrated_TT <- readRDS("/home/projects/Group1/Teff_Treg_integration_cluster_annotated.rds")
+
+#create Cell chat object will not accept integrated assay
+DefaultAssay(pbmc.integrated_TT) <- "RNA"
+
 #Trying to avoid error
-pbmc.integrated_joinlayer <- JoinLayers(pbmc.integrated)
+pbmc.integrated_joinlayer <- JoinLayers(pbmc.integrated_TT)
 
 NA_integrated <- subset(pbmc.integrated_joinlayer, subset = diseasegroup == "AS_NA")
 
 AL_integrated <- subset(pbmc.integrated_joinlayer, subset = diseasegroup == "AS_AL")
 
-#create Cell chat object will not accept integrated assay
 DefaultAssay(NA_integrated) <- "RNA"
 DefaultAssay(AL_integrated) <- "RNA"
 
@@ -168,9 +172,9 @@ pathways_AL <- cellchat_AL@netP$pathways
 par(mfrow=c(1,2))
 netVisual_aggregate(cellchat_AL, signaling = pathways_AL[1], layout = "circle")
 netVisual_aggregate(cellchat_AL, signaling = pathways_AL[2], layout = "circle")
-netVisual_aggregate(cellchat_AL, signaling = pathways_AL[3], layout = "circle")
 netVisual_aggregate(cellchat_AL, signaling = pathways_AL[4], layout = "circle")
 netVisual_aggregate(cellchat_AL, signaling = pathways_AL[5], layout = "circle")
+netVisual_aggregate(cellchat_AL, signaling = pathways_AL[3], layout = "circle")
 netVisual_aggregate(cellchat_AL, signaling = pathways_AL[6], layout = "circle")
 
 netVisual_heatmap(cellchat_AL, signaling = pathways_AL[1], color.heatmap = "Reds")
@@ -201,7 +205,7 @@ df.net_NA <- subsetCommunication(cellchat_NA) #returns a data frame consisting o
 
 #Infer the cell-cell communication at a signaling pathway level
 
-cellchat_NA <- computeCommunProbPathway(cellchat_AL)
+cellchat_NA <- computeCommunProbPathway(cellchat_NA)
 
 #Calculate the aggregated cell-cell communication network
 cellchat_NA <- aggregateNet(cellchat_NA)
@@ -235,8 +239,14 @@ saveRDS(cellchat_NA, "/home/projects/Group1/CellChat_NA.rds")
 #THIS WAS CODE FOR THE COMPARISON BETWEEN ALLERGIC AND NON-ALLERGIC, DOES NOT RUN NOW
 
 #object.list <- list(AS_NA = cellchat_NA, AS_AL = cellchat_AL)
+
+#group.new = levels(cellchat.E14@idents)
+#cellchat_new <- liftCellChat(cellchat, levels(cellchat@idents))
+
 #cellchat <- mergeCellChat(object.list, add.names = names(object.list))
 #cellchat@DB <- CellChatDB
+
+saveRDS(cellchat, "/home/projects/Group1/CellChat_merged_notwork.rds")
 
 #Compare the total number of interactions and interaction strength
 

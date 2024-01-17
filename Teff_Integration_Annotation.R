@@ -198,6 +198,30 @@ Feature_memory <- FeaturePlot(pbmc.integrated,
 Feature_memory
 ggsave("Feature_memory.png", Feature_memory, path= "Plots/Teff_integration")
 
+#checking more markers from highly variable features pre-processing plot
+FeaturePlot(pbmc.integrated,
+                              reduction = "umap",
+                              features = c("IL9","IL31"),
+                              order = TRUE,
+                              min.cutoff = 'q10',
+                              label = TRUE)
+
+FeaturePlot(pbmc.integrated,
+            reduction = "umap",
+            features = c("IL3","IL13", "CSF2" , "IL4", "IL5"),
+            order = TRUE,
+            min.cutoff = 'q10',
+            label = TRUE) # cytokine cluster TH-2
+
+FeaturePlot(pbmc.integrated,
+            reduction = "umap",
+            features = c("CCR6", "CCR4", "CCR10"),
+            order = TRUE,
+            min.cutoff = 'q10',
+            label = TRUE) #TH-22 expression (TH-17)
+
+
+
 # Identify conserved cell type markers to identify the cell types corresponding to the remaining clusters
 
 #Identify conserved cell type markers
