@@ -121,10 +121,20 @@ padj_cutoff <- 0.05
     rownames_to_column(var = "gene") %>%
     as_tibble() %>%
     arrange(padj)
+
+  #Load the table with gene descriptions to help you identify to what cell types the genes in the cluster can correspond to
+  annotations <- read.csv("/home/projects/22102_single_cell/day3/annotation.csv")
+
+  # Combine markers with gene descriptions
+  res_tbl_ann <- res_tbl %>%
+    left_join(y = unique(annotations[, c("gene_name", "description")]),
+              by = c("gene" = "gene_name"))
+
+
   library(writexl)
-  write_xlsx(res_tbl, path = "Data/DGE/Teff/Th1_DGE.xlsx")
+  write_xlsx(res_tbl_ann, path = "Data/DGE/Teff/Th1_DGE.xlsx")
   # Subset the significant results
-  sig_res <- dplyr::filter(res_tbl, padj < padj_cutoff) %>%
+  sig_res <- dplyr::filter(res_tbl_ann, padj < padj_cutoff) %>%
     dplyr::arrange(padj)
 
   # Order results by padj values and select top 20
@@ -145,6 +155,8 @@ padj_cutoff <- 0.05
 
   print("Top 20 significant genes ordered by log fold change:")
   print(top20_sig_genes_change)
+
+
 
 
 # Volcano plot
