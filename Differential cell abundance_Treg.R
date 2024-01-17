@@ -24,7 +24,7 @@ treg_asthm <- readRDS("/net/pupil1/home/projects/Group1/treg_annotated.rds")
 
 dim_diseasegroup <- DimPlot(treg_asthm, split.by = "diseasegroup")
 dim_diseasegroup
-ggsave("dim_diseasegroup.png", dim_diseasegroup, path= "Plots/DCAT/Treg")
+ggsave("dim_diseasegroup.png", dim_diseasegroup, path= "Plots/DCAT/Treg", width = 10, height = 7.5, units = "in", dpi = 300)
 
 #######################################################################################
 # Differential Cell Type abundance using DCAT tool
@@ -69,14 +69,14 @@ DCAT_data <- data.frame(
 )
 
 saveRDS(DCAT_data, "Data/DCAT/Treg/DCAT_result_data.rds")
-
+write_xlsx(DCAT_data, path = "Data/DCAT/Treg/DCAT_results.xlsx")
 # Create a volcano plot with labels and save
 volcanoplot <- ggplot(DCAT_data, aes(x = log_fold_change, y = neg_log10_p_value, label = cell_type)) +
   geom_point(aes(color = factor(results_DA$fdr[, 1] < 0.05)), size = 3) +
   geom_text_repel(aes(label = cell_type), box.padding = 0.5, point.padding = 0.1, size = 2) +
   scale_color_manual(values = c("black", "red"), guide = FALSE) +
   labs(
-    title = "Volcano Plot",
+    title = "Allergy vs. Non-allergy",
     x = "Log-fold Change",
     y = "-log10(p-value)"
   )
@@ -100,19 +100,22 @@ df <- data.frame(DiseaseGroup = rep(c("Asthm_allergic", "Asthm_non-allergic"), e
 # Create a stacked barplot using ggplot and save
 stacked_bycondition <- ggplot(df, aes(x = DiseaseGroup, y = Percentage, fill = CellType)) +
   geom_bar(stat = "identity") +
-  labs(title = "Stacked Barplot of Cell Types by Disease Group (Percentage)",
-       x = "Disease Groups",
+  labs(x = NULL,
        y = "Percentage") +
   theme_minimal() +
-  scale_fill_manual(values = c("blue", "green", "red")) +
+  scale_fill_manual(values = c("#87CEFF", "#15CD29", "#EE6363")) +
   geom_text(aes(label = paste0(round(Percentage), "%")),
             position = position_stack(vjust = 0.5), color = "white") +
-  theme(legend.position = "right", legend.title = element_blank())
+  theme(legend.position = "right",
+        legend.title = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        axis.text.x = element_text(size = 12))
+
 
 stacked_bycondition
-ggsave("stacked_bycondition.png", stacked_bycondition, path= "Plots/DCAT/Treg")
+ggsave("stacked_bycondition.png", stacked_bycondition, path= "Plots/DCAT/Treg",width = 10, height = 7.5, units = "in", dpi = 300)
 
-# Create a stacked barplot with each bar represeting a celltype
+# Create a stacked barplot with each bar representing a celltype
 # Calculate column-wise percentages
 percentages02 <- prop.table(count_mat_diseasegroup, margin = 2) * 100
 
@@ -124,14 +127,16 @@ df02 <- data.frame(CellType = rep(c("TregIFNR", "TregACT1", "TregACT2"), each = 
 # Create a stacked barplot using ggplot and save
 stacked_bycelltype <- ggplot(df02, aes(x = CellType, y = Percentage, fill = DiseaseGroup)) +
   geom_bar(stat = "identity") +
-  labs(title = "Stacked Barplot of Cell Types by Condition (Percentage)",
-       x = "Cell Types",
+  labs(x = NULL,
        y = "Percentage") +
   theme_minimal() +
-  scale_fill_manual(values = c("blue", "green")) +
+  scale_fill_manual(values = c("dodgerblue3", "#CD6889")) +
   geom_text(aes(label = paste0(round(Percentage), "%")),
             position = position_stack(vjust = 0.5), color = "white") +
-  theme(legend.position = "top")
+  theme(legend.position = "top",
+        legend.title = element_text( size = 12),
+        legend.text = element_text(size = 10),
+        axis.text.x = element_text(size = 10))
 
 stacked_bycelltype
-ggsave("stacked_bycelltype.png", stacked_bycelltype, path= "Plots/DCAT/Treg")
+ggsave("stacked_bycelltype.png", stacked_bycelltype, path= "Plots/DCAT/Treg",width = 10, height = 7.5, units = "in", dpi = 300)

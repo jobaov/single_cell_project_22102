@@ -87,6 +87,7 @@ cts.split.modified <- lapply(cts.split, function(x){
   rld_cor <- cor(rld_mat)
 
   # Plot heatmap without clustering rows or columns
+  library(pheatmap)
   heatmap <- pheatmap(rld_cor,
            annotation_col = colData[, c("diseasegroup"), drop = FALSE],
            cluster_rows = FALSE,
@@ -122,7 +123,7 @@ padj_cutoff <- 0.05
     rownames_to_column(var = "gene") %>%
     as_tibble() %>%
     arrange(padj)
-
+  write_xlsx(res_tbl, path = "Data/DGE/Teff/Th1_DGE.xlsx")
   # Subset the significant results
   sig_res <- dplyr::filter(res_tbl, padj < padj_cutoff) %>%
     dplyr::arrange(padj)
@@ -147,12 +148,28 @@ padj_cutoff <- 0.05
   print(top20_sig_genes_change)
 
 
-## Plot has to be worked on!!
-plot <- ggplot(res_tbl, aes(x = log2FoldChange, y = -log10(padj))) +
-    geom_point(aes(color = ifelse(abs(log2FoldChange) > 1 & padj < 0.05, "red", "black")), size = 2) +
-    scale_color_manual(values = c("black", "red")) +
-    theme_minimal() +
-    labs(title = "Volcano Plot for Differential Gene Expression",
-         x = "log2 Fold Change",
-         y = "-log10(padj)")
-ggsave("volcanoplot_th1.png", plot, path= "Plots/DGE/Teff")
+# Volcano plot
+
+  res_tbl_plot <- res_tbl
+  # Add a column to the data frame to specify if they are UP- or DOWN- regulated (log2fc respectively positive or negative)
+  res_tbl_plot$diffexpressed <- "NO"
+  # if log2Foldchange > 0.3 and pvalue < 0.05, set as "UP"
+  res_tbl_plot$diffexpressed[res_tbl_plot$log2FoldChange > 0.3 & res_tbl_plot$pvalue < 0.05] <- "UP"
+  # if log2Foldchange < -0.3 and pvalue < 0.05, set as "DOWN"
+  res_tbl_plot$diffexpressed[res_tbl_plot$log2FoldChange < -0.3 & res_tbl_plot$pvalue < 0.05] <- "DOWN"
+  res_tbl_plot$delabel[res_tbl_plot$gene %in% top20_sig_genes] <- res_tbl_plot$gene[res_tbl_plot$gene %in% top20_sig_genes]
+
+
+  volcano <- ggplot(data = res_tbl_plot, aes(x = log2FoldChange, y = -log10(pvalue), col = diffexpressed, label = delabel)) +
+    geom_point(size = 1) +
+    scale_color_manual(values = c("#3A5FCD", "grey", "#8B0000"),
+                       labels = c("Downregulated", "Not significant", "Upregulated")) +
+    labs(color = 'Non-allergic',
+         x = expression("log"[2]*"FC"), y = expression("-log"[10]*"p-value")) +
+    geom_text_repel(max.overlaps = Inf) +
+    ggtitle('Th1 cells in ashmatic non-allergic vs asthmatic allergic') +
+    theme_minimal()
+
+  volcano
+  ggsave("Volcanoplot_th1.png", volcano, path= "Plots/DGE/Teff", width = 10, height = 7.5, units = "in", dpi = 300)
+

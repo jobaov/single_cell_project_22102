@@ -33,6 +33,7 @@ counts.t <- t(counts)
 
 # convert to data.frame
 counts.t <- as.data.frame(counts.t)
+counts.t <- counts.t[!grepl("Asthm-non-allergic1362", rownames(counts.t)), ] ## removes outlier
 
 # get values where to split
 splitRows <- gsub('_.*', '', rownames(counts.t))

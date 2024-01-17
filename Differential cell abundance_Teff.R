@@ -114,7 +114,7 @@ stacked_bycondition <- ggplot(df, aes(x = DiseaseGroup, y = Percentage, fill = C
             size = 4,
             hjust = ifelse(df$CellType %in% cellTypesRight, 1.5, -0.5)) +  # Use the vectors for conditions
   theme(legend.position = "right",
-        legend.title = element_text( size = 12),
+        legend.title = element_text(size = 12),
         legend.text = element_text(size = 10),
         axis.text.x = element_text(size = 12))
 
