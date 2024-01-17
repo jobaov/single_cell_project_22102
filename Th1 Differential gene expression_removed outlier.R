@@ -168,7 +168,11 @@ volcano <- ggplot(data = res_tbl_plot, aes(x = log2FoldChange, y = -log10(pvalue
        x = expression("log"[2]*"FC"), y = expression("-log"[10]*"p-value")) +
   geom_text_repel(max.overlaps = Inf) +
   ggtitle('Th1 cells in ashmatic non-allergic vs asthmatic allergic') +
-  theme_minimal()
+  theme(legend.position = "right",
+        title = element_text(size = 14),
+        legend.title = element_text(size = 13),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 12))
 
 volcano
 ggsave("Volcanoplot_th1_new.png", volcano, path= "Plots/DGE/Teff", width = 10, height = 7.5, units = "in", dpi = 300)

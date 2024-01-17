@@ -75,6 +75,7 @@ cts.split.modified <- lapply(cts.split, function(x){
 
   # Plot PCA
   PCA_th1 <- DESeq2::plotPCA(rld, ntop = 500, intgroup = "diseasegroup")
+
   PCA_th1
   ggsave("PCA_th1.png", PCA_th1, path= "Plots/DGE/Teff")
 
@@ -102,10 +103,7 @@ cts.split.modified <- lapply(cts.split, function(x){
   # Run DESeq2
   dds <- DESeq(dds)
 
-  dispersions <- plotDispEsts(dds)
-  dispersions
-  ggsave("dispersions_th1.png", dispersions, path= "Plots/DGE/Teff")
-  # Generate results object
+    # Generate results object
   res <- results(dds, name = "diseasegroup_Non.allergic_vs_Allergic")
   res_tbl <- as.data.frame(res)
 
@@ -123,6 +121,7 @@ padj_cutoff <- 0.05
     rownames_to_column(var = "gene") %>%
     as_tibble() %>%
     arrange(padj)
+  library(writexl)
   write_xlsx(res_tbl, path = "Data/DGE/Teff/Th1_DGE.xlsx")
   # Subset the significant results
   sig_res <- dplyr::filter(res_tbl, padj < padj_cutoff) %>%
@@ -168,7 +167,12 @@ padj_cutoff <- 0.05
          x = expression("log"[2]*"FC"), y = expression("-log"[10]*"p-value")) +
     geom_text_repel(max.overlaps = Inf) +
     ggtitle('Th1 cells in ashmatic non-allergic vs asthmatic allergic') +
-    theme_minimal()
+    theme(legend.position = "right",
+          title = element_text(size = 14),
+          legend.title = element_text(size = 13),
+          legend.text = element_text(size = 12),
+          axis.text.x = element_text(size = 12))
+
 
   volcano
   ggsave("Volcanoplot_th1.png", volcano, path= "Plots/DGE/Teff", width = 10, height = 7.5, units = "in", dpi = 300)
