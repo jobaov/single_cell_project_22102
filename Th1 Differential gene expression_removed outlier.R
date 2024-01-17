@@ -171,5 +171,5 @@ volcano <- ggplot(data = res_tbl_plot, aes(x = log2FoldChange, y = -log10(pvalue
   theme_minimal()
 
 volcano
-ggsave("Volcanoplot_th1.png", volcano, path= "Plots/DGE/Teff", width = 10, height = 7.5, units = "in", dpi = 300)
+ggsave("Volcanoplot_th1_new.png", volcano, path= "Plots/DGE/Teff", width = 10, height = 7.5, units = "in", dpi = 300)
 
